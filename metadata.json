@@ -1,0 +1,7 @@
+{
+  "name": "BL4CK SYSTEM",
+  "description": "Gerenciamento de transferências de dados, controle de SIMs e integração remota com Bot do WhatsApp",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

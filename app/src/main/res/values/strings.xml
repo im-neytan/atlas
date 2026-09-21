@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">BL4CK SYSTEM</string>
+    <string name="tab_fila">Fila</string>
+    <string name="tab_historico">Histórico</string>
+    <string name="tab_sims">Controle de SIMs</string>
+    <string name="metric_total">TOTAL NA FILA</string>
+    <string name="metric_waiting">AGUARDANDO</string>
+    <string name="metric_processing">EM PROCESSAMENTO</string>
+    <string name="btn_schedule">Agendar Transferência</string>
+    <string name="dialog_schedule_title">Nova Transferência</string>
+    <string name="input_number_hint">Número do Destinatário (ex: 923 456 789)</string>
+    <string name="input_megas_hint">Quantidade (MB/GB, ex: 500 MB)</string>
+    <string name="btn_confirm">Confirmar Agendamento</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="status_connected">🟢 Conectado</string>
+    <string name="status_disconnected">🔴 Desconectado</string>
+    <string name="limit_reached_warning">⚠️ LIMITE ATINGIDO</string>
+    <string name="accessibility_service_description">Serviço de Acessibilidade do Bl4ck System para captura de mensagens e diálogos USSD de confirmação da operadora.</string>
+</resources>
