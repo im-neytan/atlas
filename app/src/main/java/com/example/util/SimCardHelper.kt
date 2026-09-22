@@ -64,12 +64,14 @@ object SimCardHelper {
     /**
      * Detecta os cartões SIM inseridos fisicamente ou ativos no aparelho
      * e identifica o nome real da rede, número de telefone e qual está ativo para chamadas.
+     * Se o telefone não tiver nenhum cartão, retorna lista vazia (sem cartões ativos) e não inventa
+     * nenhum T-Mobile ou outra operadora fictícia.
      */
     fun detectarSimsReais(context: Context): List<RealSimCard> {
         val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
         val simState = telephonyManager?.simState ?: TelephonyManager.SIM_STATE_UNKNOWN
 
-        // Se o modem reportar que não há cartão SIM inserido
+        // Se o modem reportar que não há cartão SIM inserido fisicamente
         if (simState == TelephonyManager.SIM_STATE_ABSENT) {
             return emptyList()
         }
@@ -79,7 +81,7 @@ object SimCardHelper {
             Manifest.permission.READ_PHONE_STATE
         ) == PackageManager.PERMISSION_GRANTED
 
-        // 1. Se possuir permissão READ_PHONE_STATE, consulta a lista real de assinaturas do SubscriptionManager
+        // 1. Consulta o SubscriptionManager para enumerar todas as assinaturas ativas nos dois slots
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
             val subManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
             if (subManager != null && hasPhoneState) {
@@ -102,11 +104,13 @@ object SimCardHelper {
                     }
 
                     val list = activeList.mapNotNull { info ->
-                        val slotDisplay = (info.simSlotIndex + 1).coerceAtLeast(1)
+                        val slotDisplay = if (info.simSlotIndex >= 0) info.simSlotIndex + 1 else 1
+                        val slotIndex = if (info.simSlotIndex >= 0) info.simSlotIndex else 0
+
                         var carrier = info.carrierName?.toString()?.trim()?.ifBlank { null }
                             ?: info.displayName?.toString()?.trim()?.ifBlank { null }
 
-                        // Desconsidera nomes fictícios de rádio de emulador
+                        // Desconsidera operadoras fictícias de emulador (Android, T-Mobile) caso o SIM não seja um cartão real pronto
                         if (carrier != null && (carrier.equals("Android", ignoreCase = true) || carrier.equals("T-Mobile", ignoreCase = true))) {
                             if (simState != TelephonyManager.SIM_STATE_READY) {
                                 return@mapNotNull null
@@ -119,13 +123,13 @@ object SimCardHelper {
                         } else if (defaultVoiceSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                             info.subscriptionId == defaultVoiceSubId
                         } else {
-                            info.simSlotIndex == 0
+                            slotIndex == 0
                         }
 
                         val phoneNum = obterNumeroTelefone(context, subManager, info)
 
                         RealSimCard(
-                            slotIndex = info.simSlotIndex,
+                            slotIndex = slotIndex,
                             slotDisplay = slotDisplay,
                             subscriptionId = info.subscriptionId,
                             carrierName = resolvedCarrier,
@@ -140,16 +144,15 @@ object SimCardHelper {
             }
         }
 
-        // 2. Sem permissão ou sem SubscriptionManager: verificar TelephonyManager
+        // 2. Fallback caso SubscriptionManager ou permissão READ_PHONE_STATE não esteja disponível
         val rawCarrier = telephonyManager?.networkOperatorName?.trim()?.ifBlank { null }
             ?: telephonyManager?.simOperatorName?.trim()?.ifBlank { null }
 
-        // Se não há chip pronto ou se for a rede padrão fictícia de emulador (T-Mobile / Android)
+        // Se o estado não for pronto ou for operadora padrão de emulador, não inventa cartões
         if (simState != TelephonyManager.SIM_STATE_READY ||
             rawCarrier == null ||
             rawCarrier.equals("Android", ignoreCase = true) ||
             rawCarrier.equals("T-Mobile", ignoreCase = true)) {
-            // Nenhum cartão real ativo
             return emptyList()
         }
 
@@ -224,9 +227,9 @@ object SimCardHelper {
         } else {
             SimCard(
                 slot = 1,
-                providerName = "Nenhum provedor",
+                providerName = "Sem cartões ativos",
                 phoneNumber = "N/A",
-                status = if (detected.isEmpty()) "Ausente / Nenhum chip detectado" else "Slot 1 Vazio / Desocupado",
+                status = if (detected.isEmpty()) "Sem cartões ativos" else "Slot 1 Vazio / Desocupado",
                 isInserted = false,
                 isActiveVoice = false,
                 remainingSends = 0,
@@ -269,9 +272,9 @@ object SimCardHelper {
         } else {
             SimCard(
                 slot = 2,
-                providerName = "Nenhum provedor",
+                providerName = "Sem cartões ativos",
                 phoneNumber = "N/A",
-                status = if (detected.isEmpty()) "Ausente / Nenhum chip detectado" else "Slot 2 Vazio / Desocupado",
+                status = if (detected.isEmpty()) "Sem cartões ativos" else "Slot 2 Vazio / Desocupado",
                 isInserted = false,
                 isActiveVoice = false,
                 remainingSends = 0,

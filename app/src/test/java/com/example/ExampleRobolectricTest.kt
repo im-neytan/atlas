@@ -41,4 +41,21 @@ class ExampleRobolectricTest {
     val list = db.pedidoFilaDao().getAll()
     org.junit.Assert.assertTrue(list.isNotEmpty())
   }
+
+  @Test
+  fun `test 1GB corresponds to 1024MB and operator response truncated to 70 chars`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val manager = com.example.network.ServidorManager.getInstance(context)
+
+    // Verifica que 1GB equivale a 1024MB e 2GB a 2048MB
+    org.junit.Assert.assertEquals("1024", manager.extrairMegasPuro("1GB"))
+    org.junit.Assert.assertEquals("1024", manager.extrairMegasPuro("1 GB"))
+    org.junit.Assert.assertEquals("2048", manager.extrairMegasPuro("2GB"))
+    org.junit.Assert.assertEquals("500", manager.extrairMegasPuro("500 MB"))
+
+    // Verifica que a resposta da operadora nunca ultrapassa 70 caracteres
+    val respostaLonga = "Transferiste com sucesso 1024MB para 841234567. O teu saldo de megas atual e de 5000MB validos ate 30 dias. Obrigado pela preferencia Vodacom."
+    val respostaLimpa = manager.limparRespostaOperadora(respostaLonga)
+    org.junit.Assert.assertTrue(respostaLimpa.length <= 70)
+  }
 }

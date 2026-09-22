@@ -173,6 +173,11 @@ class UssdAccessibilityService : AccessibilityService() {
                     return
                 }
 
+                // Garante que o texto capturado seja válido e não seja apenas resíduo de botão
+                if (pureResponse.isBlank() || pureResponse.equals("ok", ignoreCase = true)) {
+                    return
+                }
+
                 lastHandledText = capturedText
                 recordStepCapture(Step.WAITING_FINAL_RESPONSE, 5, pureResponse, "[FIM DO FLUXO]")
                 _ultimaRespostaFinal.value = pureResponse

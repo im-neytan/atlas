@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/aura_tech_lightning_logo_1790083123480"
+        android:drawable="@drawable/aura_tech_pro_lightning_1790114606913"
         android:gravity="center" />
 </layer-list>

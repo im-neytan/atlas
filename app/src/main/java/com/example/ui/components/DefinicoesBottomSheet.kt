@@ -5,8 +5,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +30,12 @@ import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -58,6 +65,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -67,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckPrimary
+import com.example.ui.theme.Bl4ckSecondary
 import com.example.ui.theme.Bl4ckSurface
 import com.example.ui.theme.Bl4ckSurfaceVariant
 import com.example.ui.theme.Bl4ckTextMuted
@@ -555,6 +565,13 @@ fun DefinicoesBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ==========================================
+            // SEÇÃO 4: SOBRE A BL4CK_SOLUTIONS
+            // ==========================================
+            SobreCorporacaoSection()
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             Button(
                 onClick = onDismissRequest,
                 modifier = Modifier.fillMaxWidth(),
@@ -572,6 +589,211 @@ fun DefinicoesBottomSheet(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SobreCorporacaoSection() {
+    var isExpanded by remember { mutableStateOf(true) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { isExpanded = !isExpanded }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Bl4ckPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "SOBRE A BL4CK_SOLUTIONS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Bl4ckPrimary,
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isExpanded) "Recolher" else "Expandir",
+                tint = Bl4ckTextMuted,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (isExpanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Bl4ckSurfaceVariant)
+                    .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(14.dp))
+                    .padding(18.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Header com Logo Aura Tech e Identidade Corporativa
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.aura_tech_pro_lightning_1790114606913),
+                            contentDescription = "Logo BL4CK_SOLUTIONS",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, Bl4ckPrimary.copy(alpha = 0.5f), CircleShape)
+                        )
+
+                        Column {
+                            Text(
+                                text = "BL4CK_SOLUTIONS",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Bl4ckTextPrimary,
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                text = "Tecnologia & Soluções Digitais",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Bl4ckSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = Bl4ckBorderSubtle)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Textos Oficiais
+                    Text(
+                        text = "A BL4CK_SOLUTIONS é uma corporação de tecnologia e soluções digitais, fundada em 2026 e sediada em Maputo, Moçambique.",
+                        fontSize = 12.sp,
+                        color = Color(0xFFCBD5E1),
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Somos especializados em desenvolvimento de software, automação de processos, plataformas de streaming e soluções digitais sob medida.",
+                        fontSize = 12.sp,
+                        color = Color(0xFFCBD5E1),
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Nosso compromisso é fornecer tecnologia de qualidade, com segurança, desempenho e suporte dedicado.",
+                        fontSize = 12.sp,
+                        color = Color(0xFFCBD5E1),
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Metadados Corporativos
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF09121B))
+                            .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(10.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = null,
+                                    tint = Bl4ckPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Contacto: info@bl4cksolutions.com",
+                                    fontSize = 11.sp,
+                                    color = Bl4ckTextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Bl4ckPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Localização: Maputo, Moçambique",
+                                    fontSize = 11.sp,
+                                    color = Bl4ckTextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = null,
+                                    tint = Bl4ckPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Fundação: 2026",
+                                    fontSize = 11.sp,
+                                    color = Bl4ckTextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Copyright oficial formatado
+                    Text(
+                        text = "© 2026 BL4CK_SOLUTIONS. Todos os direitos reservados.",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Bl4ckTextMuted,
+                        fontFamily = FontFamily.SansSerif
+                    )
+                }
+            }
         }
     }
 }

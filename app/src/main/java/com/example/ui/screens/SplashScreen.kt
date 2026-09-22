@@ -167,9 +167,9 @@ fun SplashScreen(
                         )
                 )
 
-                // Imagem da Logo Aura Tech (Raio futurista sem letras)
+                // Imagem da Logo Aura Tech (Raio futurista profissional sem letras)
                 Image(
-                    painter = painterResource(id = R.drawable.aura_tech_lightning_logo_1790083123480),
+                    painter = painterResource(id = R.drawable.aura_tech_pro_lightning_1790114606913),
                     contentDescription = "Logo Aura Tech",
                     modifier = Modifier
                         .size(118.dp)
@@ -182,11 +182,11 @@ fun SplashScreen(
 
             // Subtítulo calmo e suave
             Text(
-                text = "bl4ck automation",
+                text = "BL4CK AUTOMATION",
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = 4.sp,
-                color = Color(0xFF94A3B8)
+                color = Color(0xFFCBD5E1)
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -200,7 +200,7 @@ fun SplashScreen(
             )
         }
 
-        // Rodapé Calmo e Suave solicitado: "C 2026 bl4ck_solutions. Inc."
+        // Rodapé Calmo e Suave solicitado: © 2026 bl4ck_solutions.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -208,12 +208,12 @@ fun SplashScreen(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "C 2026 bl4ck_solutions. Inc.",
+                text = "© 2026 bl4ck_solutions.",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal,
                 fontFamily = FontFamily.SansSerif,
                 letterSpacing = 1.2.sp,
-                color = Color(0xFF475569) // Cinza ardósia suave e sereno
+                color = Color(0xFF64748B) // Cinza ardósia suave e sereno
             )
         }
     }

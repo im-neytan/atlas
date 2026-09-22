@@ -88,13 +88,32 @@ import com.example.ui.theme.Bl4ckTextSecondary
 import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
 
+import android.Manifest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+
 class DashboardActivity : ComponentActivity() {
 
     private val viewModel: DashboardViewModel by viewModels()
 
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        viewModel.atualizarSims()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Solicita as permissões telefônicas fundamentais para leitura multi-SIM e discagem USSD
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.CALL_PHONE,
+                Manifest.permission.READ_PHONE_NUMBERS
+            )
+        )
 
         setContent {
             MyApplicationTheme {
@@ -185,7 +204,7 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.aura_tech_lightning_logo_1790083123480),
+                            painter = painterResource(id = R.drawable.aura_tech_pro_lightning_1790114606913),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(24.dp)

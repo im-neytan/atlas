@@ -100,6 +100,7 @@ fun ControleSimsScreen(
     simCards: List<SimCard> = emptyList(),
     onAtualizarSims: () -> Unit = {},
     onSalvarNumeroSim: (slot: Int, numero: String) -> Unit = { _, _ -> },
+    onAbrirConfiguracoesSistema: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var editUrl by remember(serverUrl) { mutableStateOf(serverUrl) }
@@ -146,7 +147,8 @@ fun ControleSimsScreen(
                 activeSim = activeSim,
                 sim1Info = sim1Info,
                 sim2Info = sim2Info,
-                onAlternarSim = onAlternarSim
+                onAlternarSim = onAlternarSim,
+                onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema
             )
         }
 
@@ -159,7 +161,7 @@ fun ControleSimsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "ESTADO REAL DOS CARTÕES SIM (ROOM)",
                         style = MaterialTheme.typography.labelSmall,
@@ -178,16 +180,30 @@ fun ControleSimsScreen(
                     )
                 }
 
-                OutlinedButton(
-                    onClick = onAtualizarSims,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckPrimary),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Reescanear", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(
+                        onClick = onAbrirConfiguracoesSistema,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckSecondary),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Config. SIM", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    OutlinedButton(
+                        onClick = onAtualizarSims,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckPrimary),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Reescanear", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -198,6 +214,7 @@ fun ControleSimsScreen(
                 simCard = sim1,
                 isActiveVoice = activeSim == 1 && sim1.isInserted,
                 onAlternarSim = { if (activeSim != 1 && sim1.isInserted) onAlternarSim() },
+                onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema,
                 onEditarNumero = {
                     editingSlot = 1
                     editNumberValue = if (sim1.phoneNumber != "Não gravado no chip" && sim1.phoneNumber != "N/A") sim1.phoneNumber else ""
@@ -212,6 +229,7 @@ fun ControleSimsScreen(
                 simCard = sim2,
                 isActiveVoice = activeSim == 2 && sim2.isInserted,
                 onAlternarSim = { if (activeSim != 2 && sim2.isInserted) onAlternarSim() },
+                onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema,
                 onEditarNumero = {
                     editingSlot = 2
                     editNumberValue = if (sim2.phoneNumber != "Não gravado no chip" && sim2.phoneNumber != "N/A") sim2.phoneNumber else ""

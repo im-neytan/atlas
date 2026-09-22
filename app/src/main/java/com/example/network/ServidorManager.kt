@@ -178,13 +178,14 @@ class ServidorManager private constructor(private val context: Context) {
     }
 
     /**
-     * Limpa e formata a quantidade de megas para dígito puro (ex: "500")
+     * Limpa e formata a quantidade de megas para dígito puro (ex: "500", "1024")
+     * 1GB corresponde a 1024MB
      */
     fun extrairMegasPuro(megas: String): String {
         return when {
             megas.contains("GB", ignoreCase = true) -> {
                 val num = megas.replace(Regex("[^0-9.]"), "").trim().toDoubleOrNull() ?: 1.0
-                (num * 1000).toInt().toString()
+                (num * 1024).toInt().toString()
             }
             else -> {
                 val digits = megas.replace(Regex("[^0-9]"), "").trim()
@@ -269,6 +270,7 @@ class ServidorManager private constructor(private val context: Context) {
     /**
      * Limpa o texto da resposta da operadora para conter unicamente
      * a resposta da operadora, eliminando artefatos, múltiplos passos e botões de interface.
+     * No histórico e relatórios a resposta nunca deve ter mais de 70 caracteres (corta o resto).
      */
     fun limparRespostaOperadora(textoBruto: String): String {
         var limpo = textoBruto.trim()
@@ -278,6 +280,10 @@ class ServidorManager private constructor(private val context: Context) {
         val buttonRegex = Regex("(?i)\\b(ok|fechar|close|cancelar|send|enviar|dismiss|entendido)\\b")
         limpo = limpo.replace(buttonRegex, "").trim()
         limpo = limpo.replace(Regex("\\s+"), " ").trim()
+        // No histórico a parte da resposta da operadora nunca deve ter mais de 70 caracteres
+        if (limpo.length > 70) {
+            limpo = limpo.take(70).trim()
+        }
         return limpo
     }
 

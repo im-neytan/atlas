@@ -311,7 +311,9 @@ private fun formatarRespostaOperadoraExibicao(texto: String): String {
     val buttonRegex = Regex("(?i)\\b(ok|fechar|close|cancelar|send|enviar|dismiss|entendido)\\b")
     limpo = limpo.replace(buttonRegex, "").trim()
     limpo = limpo.replace(Regex("\\s+"), " ").trim()
-    return limpo.ifBlank { texto.trim() }
+    val finalTexto = limpo.ifBlank { texto.trim() }
+    // No histórico a parte da resposta da operadora nunca deve ter mais de 70 carácteres se for corta o resto
+    return if (finalTexto.length > 70) finalTexto.take(70).trim() else finalTexto
 }
 
 @Composable
