@@ -5,6 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -47,12 +51,17 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +74,7 @@ import com.example.ui.screens.ControleSimsScreen
 import com.example.ui.screens.FilaScreen
 import com.example.ui.screens.HistoricoScreen
 import com.example.ui.screens.OverviewDashboardScreen
+import com.example.ui.screens.SplashScreen
 import com.example.ui.theme.Bl4ckBackground
 import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
@@ -88,7 +98,21 @@ class DashboardActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                DashboardScreen(viewModel = viewModel)
+                var showSplash by remember { mutableStateOf(true) }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    DashboardScreen(viewModel = viewModel)
+
+                    AnimatedVisibility(
+                        visible = showSplash,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        SplashScreen(
+                            onSplashFinished = { showSplash = false }
+                        )
+                    }
+                }
             }
         }
     }
@@ -156,13 +180,26 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        text = "BL4CK SYSTEM",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        letterSpacing = 1.2.sp,
-                        color = Bl4ckTextPrimary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.aura_tech_lightning_logo_1790083123480),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "BL4CK SYSTEM",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.2.sp,
+                            color = Bl4ckTextPrimary
+                        )
+                    }
                 },
                 actions = {
                     IconButton(
