@@ -162,20 +162,35 @@ class UssdAccessibilityService : AccessibilityService() {
             }
 
             Step.WAITING_FINAL_RESPONSE -> {
-                // Captura a mensagem final limpa de confirmação / débito / erro emitida pela operadora
+                // No último popup (que vem imediatamente após a fase do número destinatário),
+                // extrai estritamente a mensagem emitida pela operadora:
+                // Pode não ter EditText (diálogo de informação final) ou pode ter botão OK/Fechar.
                 val pureResponse = extractPureOperatorResponse(rootNode).ifBlank { capturedText }
+
+                // Evita ler o próprio menu do passo anterior caso a tela ainda não tenha mudado
+                if (pureResponse.contains(targetNumero.value) && pureResponse.contains("Destinatario", ignoreCase = true)) {
+                    // A tela ainda é a etapa anterior de número; aguarda a transição para o último pop up
+                    return
+                }
+
                 lastHandledText = capturedText
                 recordStepCapture(Step.WAITING_FINAL_RESPONSE, 5, pureResponse, "[FIM DO FLUXO]")
                 _ultimaRespostaFinal.value = pureResponse
-                _stepLogFlow.value = "Concluído: $pureResponse"
+                _stepLogFlow.value = "Resposta da operadora lida: $pureResponse"
                 _currentActiveStep.value = Step.IDLE
 
+                // Registra a resposta certa capturada no último popup
                 ServidorManager.getInstance(applicationContext).registrarRespostaUssd(pureResponse)
 
-                // Clica no botão OK/Fechar do diálogo da operadora para dispensar a janela
+                // Clica no botão OK/Fechar do último pop up para dispensar a janela sem deixar resíduos
                 serviceScope.launch {
-                    delay(300)
-                    findAndClickDismissButton(rootNode)
+                    delay(350)
+                    val dismissed = findAndClickDismissButton(rootNode)
+                    if (!dismissed) {
+                        // Tentativa de fechar clicando no nó raiz ou botão ativo
+                        delay(250)
+                        findAndClickDismissButton(rootInActiveWindow ?: rootNode)
+                    }
                 }
             }
 

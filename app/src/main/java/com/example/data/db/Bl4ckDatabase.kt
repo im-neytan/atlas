@@ -6,15 +6,17 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.model.HistoricoItem
 import com.example.data.model.PedidoFila
+import com.example.data.model.SimCard
 
 @Database(
-    entities = [PedidoFila::class, HistoricoItem::class],
-    version = 1,
+    entities = [PedidoFila::class, HistoricoItem::class, SimCard::class],
+    version = 2,
     exportSchema = false
 )
 abstract class Bl4ckDatabase : RoomDatabase() {
     abstract fun pedidoFilaDao(): PedidoFilaDao
     abstract fun historicoDao(): HistoricoDao
+    abstract fun simCardDao(): SimCardDao
 
     companion object {
         @Volatile

@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import com.example.data.db.Bl4ckDatabase
 import com.example.data.model.HistoricoItem
 import com.example.data.model.PedidoFila
+import com.example.data.model.SimCard
 import com.example.data.model.SimInfo
 import com.example.service.UssdAccessibilityService
 import com.example.util.AppNotificationHelper
@@ -55,6 +56,9 @@ class ServidorManager private constructor(private val context: Context) {
     private val database = Bl4ckDatabase.getInstance(context)
     private val filaDao = database.pedidoFilaDao()
     private val historicoDao = database.historicoDao()
+    private val simCardDao = database.simCardDao()
+
+    val simCardsFlow = simCardDao.getAllFlow()
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
@@ -327,6 +331,7 @@ class ServidorManager private constructor(private val context: Context) {
             numero = cleanNumero
         )
         TtsPronunciadorHelper.getInstance(context).narrarInicio(
+            displayId = pedido.displayId,
             megas = cleanMegas,
             numero = cleanNumero
         )
@@ -406,6 +411,7 @@ class ServidorManager private constructor(private val context: Context) {
             status = statusFinal
         )
         TtsPronunciadorHelper.getInstance(context).narrarFim(
+            displayId = pedido.displayId,
             megas = cleanMegas,
             numero = cleanNumero,
             sucesso = isSucesso
@@ -470,53 +476,45 @@ class ServidorManager private constructor(private val context: Context) {
     }
 
     fun atualizarInformacoesSims() {
-        val sims = SimCardHelper.detectarSimsReais(context)
-        if (sims.isEmpty()) {
-            _sim1Info.value = _sim1Info.value.copy(
-                carrierName = "Sem cartões ativos",
-                isInserted = false,
-                isActive = false,
-                isDefaultVoice = false
-            )
-            _sim2Info.value = _sim2Info.value.copy(
-                carrierName = "Sem cartões ativos",
-                isInserted = false,
-                isActive = false,
-                isDefaultVoice = false
-            )
-            _activeSim.value = 0
-        } else if (sims.size == 1) {
-            val s1 = sims[0]
-            _sim1Info.value = _sim1Info.value.copy(
-                carrierName = s1.carrierName,
-                isInserted = true,
-                isDefaultVoice = true,
-                subscriptionId = s1.subscriptionId
-            )
-            _sim2Info.value = _sim2Info.value.copy(
-                isInserted = false,
-                isDefaultVoice = false
-            )
-            _activeSim.value = 1
-        } else if (sims.size >= 2) {
-            val s1 = sims.firstOrNull { it.slotDisplay == 1 } ?: sims[0]
-            val s2 = sims.firstOrNull { it.slotDisplay == 2 } ?: sims[1]
-            _sim1Info.value = _sim1Info.value.copy(
-                carrierName = s1.carrierName,
-                isInserted = true,
-                isDefaultVoice = s1.isDefaultVoice,
-                subscriptionId = s1.subscriptionId
-            )
-            _sim2Info.value = _sim2Info.value.copy(
-                carrierName = s2.carrierName,
-                isInserted = true,
-                isDefaultVoice = s2.isDefaultVoice,
-                subscriptionId = s2.subscriptionId
-            )
-            if (s2.isDefaultVoice && !s1.isDefaultVoice) {
-                _activeSim.value = 2
-            } else if (s1.isDefaultVoice) {
-                _activeSim.value = 1
+        scope.launch {
+            val dbSims = simCardDao.getAll().associateBy { it.slot }
+            val resolvedList = SimCardHelper.resolverEstadoSimsCompletos(context, dbSims)
+            simCardDao.insertAll(resolvedList)
+
+            val s1 = resolvedList.firstOrNull { it.slot == 1 }
+            val s2 = resolvedList.firstOrNull { it.slot == 2 }
+
+            if (s1 != null) {
+                _sim1Info.value = SimInfo(
+                    slot = 1,
+                    isActive = s1.isActiveVoice,
+                    carrierName = if (s1.isInserted) s1.providerName else "Sem cartões ativos",
+                    remainingSends = s1.remainingSends,
+                    totalLimit = s1.totalLimit,
+                    isInserted = s1.isInserted,
+                    isDefaultVoice = s1.isActiveVoice,
+                    subscriptionId = s1.subscriptionId
+                )
+            }
+            if (s2 != null) {
+                _sim2Info.value = SimInfo(
+                    slot = 2,
+                    isActive = s2.isActiveVoice,
+                    carrierName = if (s2.isInserted) s2.providerName else "Sem cartões ativos",
+                    remainingSends = s2.remainingSends,
+                    totalLimit = s2.totalLimit,
+                    isInserted = s2.isInserted,
+                    isDefaultVoice = s2.isActiveVoice,
+                    subscriptionId = s2.subscriptionId
+                )
+            }
+
+            _activeSim.value = when {
+                s1?.isActiveVoice == true -> 1
+                s2?.isActiveVoice == true -> 2
+                s1?.isInserted == true -> 1
+                s2?.isInserted == true -> 2
+                else -> 0
             }
         }
     }
@@ -537,6 +535,9 @@ class ServidorManager private constructor(private val context: Context) {
             isActive = targetSlot == 2,
             isDefaultVoice = targetSlot == 2
         )
+        scope.launch {
+            simCardDao.setActiveVoiceSlot(targetSlot)
+        }
         val carrierName = if (targetSlot == 1) _sim1Info.value.carrierName else _sim2Info.value.carrierName
         _lastLogMessage.value = "SIM ativo alterado para SIM $targetSlot ($carrierName)."
         enviarRelatorioEstado()
@@ -546,17 +547,35 @@ class ServidorManager private constructor(private val context: Context) {
         }
     }
 
+    fun atualizarNumeroTelefoneSim(simSlot: Int, novoNumero: String) {
+        scope.launch {
+            simCardDao.updatePhoneNumber(simSlot, novoNumero.trim())
+            _lastLogMessage.value = "Número do SIM $simSlot atualizado: $novoNumero"
+            atualizarInformacoesSims()
+        }
+    }
+
     fun atualizarLimiteEnvios(simSlot: Int, novoLimite: Int, restantes: Int) {
+        val finalRestantes = restantes.coerceAtMost(novoLimite)
         if (simSlot == 1) {
             _sim1Info.value = _sim1Info.value.copy(
                 totalLimit = novoLimite,
-                remainingSends = restantes.coerceAtMost(novoLimite)
+                remainingSends = finalRestantes
             )
         } else {
             _sim2Info.value = _sim2Info.value.copy(
                 totalLimit = novoLimite,
-                remainingSends = restantes.coerceAtMost(novoLimite)
+                remainingSends = finalRestantes
             )
+        }
+        scope.launch {
+            val existing = simCardDao.getBySlot(simSlot)
+            if (existing != null) {
+                simCardDao.insertOrUpdate(existing.copy(
+                    totalLimit = novoLimite,
+                    remainingSends = finalRestantes
+                ))
+            }
         }
         _lastLogMessage.value = "Limite atualizado para SIM $simSlot: $restantes/$novoLimite restantes."
         enviarRelatorioEstado()
@@ -591,20 +610,10 @@ class ServidorManager private constructor(private val context: Context) {
                 val isSucesso = isRespostaSucessoPadrao(respostaLimpa)
                 val statusFinal = if (isSucesso) "CONCLUIDO" else "ANALISE"
 
-                historicoDao.update(recente.copy(ussdResposta = respostaLimpa, status = statusFinal))
-
-                AppNotificationHelper.getInstance(context).notificarFinalizarTransferencia(
-                    displayId = recente.displayId,
-                    megas = recente.megas,
-                    numero = recente.numeroDestino,
-                    resposta = respostaLimpa,
-                    status = statusFinal
-                )
-                TtsPronunciadorHelper.getInstance(context).narrarFim(
-                    megas = recente.megas,
-                    numero = recente.numeroDestino,
-                    sucesso = isSucesso
-                )
+                // Atualiza o registro se o status ou resposta final tiver mudado
+                if (recente.ussdResposta != respostaLimpa || recente.status != statusFinal) {
+                    historicoDao.update(recente.copy(ussdResposta = respostaLimpa, status = statusFinal))
+                }
             }
         }
     }

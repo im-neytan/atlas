@@ -114,6 +114,7 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     val activeSim by viewModel.activeSim.collectAsStateWithLifecycle()
     val sim1Info by viewModel.sim1Info.collectAsStateWithLifecycle()
     val sim2Info by viewModel.sim2Info.collectAsStateWithLifecycle()
+    val simCards by viewModel.simCards.collectAsStateWithLifecycle()
     val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val lastLogMessage by viewModel.lastLogMessage.collectAsStateWithLifecycle()
@@ -316,7 +317,10 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                         onSimularComando = { viewModel.simularComandoRemoto(it) },
                         onAtualizarLimiteManual = { slot, lim, rest ->
                             viewModel.atualizarLimite(slot, lim, rest)
-                        }
+                        },
+                        simCards = simCards,
+                        onAtualizarSims = { viewModel.servidorManager.atualizarInformacoesSims() },
+                        onSalvarNumeroSim = { slot, num -> viewModel.salvarNumeroSim(slot, num) }
                     )
                 }
             }

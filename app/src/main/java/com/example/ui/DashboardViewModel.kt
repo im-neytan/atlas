@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.db.Bl4ckDatabase
 import com.example.data.model.HistoricoItem
 import com.example.data.model.PedidoFila
+import com.example.data.model.SimCard
 import com.example.data.model.SimInfo
 import com.example.network.ConnectionStatus
 import com.example.network.ServidorManager
@@ -21,7 +22,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val db = Bl4ckDatabase.getInstance(application)
     private val filaDao = db.pedidoFilaDao()
     private val historicoDao = db.historicoDao()
+    private val simCardDao = db.simCardDao()
     val servidorManager = ServidorManager.getInstance(application)
+
+    // SimCard Room flow
+    val simCards: StateFlow<List<SimCard>> = simCardDao.getAllFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Fila flows
     val pedidosFila: StateFlow<List<PedidoFila>> = filaDao.getAllFlow()
@@ -135,6 +141,17 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             put("action", action)
         }.toString()
         servidorManager.processarComandoRemoto(json)
+    }
+
+    fun salvarNumeroSim(slot: Int, numero: String) {
+        servidorManager.atualizarNumeroTelefoneSim(slot, numero)
+    }
+
+    fun salvarSimCard(simCard: SimCard) {
+        viewModelScope.launch {
+            simCardDao.insertOrUpdate(simCard)
+            servidorManager.atualizarInformacoesSims()
+        }
     }
 
     fun excluirPedido(pedido: PedidoFila) {

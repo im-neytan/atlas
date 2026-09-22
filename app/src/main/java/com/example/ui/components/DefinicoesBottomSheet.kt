@@ -428,58 +428,47 @@ fun DefinicoesBottomSheet(
                     .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(12.dp))
                     .padding(14.dp)
             ) {
-                Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = null,
-                                tint = if (pronunciamentoInicial) Bl4ckPrimary else Bl4ckTextMuted,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = null,
+                            tint = if (pronunciamentoInicial) Bl4ckPrimary else Bl4ckTextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
                             Text(
                                 text = "Ativar pronunciamento inicial",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Bl4ckTextPrimary
                             )
-                        }
-
-                        Switch(
-                            checked = pronunciamentoInicial,
-                            onCheckedChange = { settingsManager.setPronunciamentoInicial(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Bl4ckPrimary,
-                                uncheckedThumbColor = Bl4ckTextMuted,
-                                uncheckedTrackColor = Color(0xFF1E293B)
+                            Text(
+                                text = "Anuncia a transferência ao iniciar a operação",
+                                fontSize = 11.sp,
+                                color = Bl4ckTextMuted
                             )
-                        )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF0C131D))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "Narra ao iniciar: \"Enviando 1024MB para 84XXXXXXX\"",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            color = if (pronunciamentoInicial) Color(0xFF34D399) else Bl4ckTextMuted
+                    Switch(
+                        checked = pronunciamentoInicial,
+                        onCheckedChange = { settingsManager.setPronunciamentoInicial(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Bl4ckPrimary,
+                            uncheckedThumbColor = Bl4ckTextMuted,
+                            uncheckedTrackColor = Color(0xFF1E293B)
                         )
-                    }
+                    )
                 }
             }
 
@@ -494,58 +483,47 @@ fun DefinicoesBottomSheet(
                     .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(12.dp))
                     .padding(14.dp)
             ) {
-                Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = if (pronunciamentoFinal) Bl4ckPrimary else Bl4ckTextMuted,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = if (pronunciamentoFinal) Bl4ckPrimary else Bl4ckTextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
                             Text(
                                 text = "Ativar pronunciamento final",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Bl4ckTextPrimary
                             )
-                        }
-
-                        Switch(
-                            checked = pronunciamentoFinal,
-                            onCheckedChange = { settingsManager.setPronunciamentoFinal(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Bl4ckPrimary,
-                                uncheckedThumbColor = Bl4ckTextMuted,
-                                uncheckedTrackColor = Color(0xFF1E293B)
+                            Text(
+                                text = "Anuncia a conclusão ao finalizar a operação",
+                                fontSize = 11.sp,
+                                color = Bl4ckTextMuted
                             )
-                        )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF0C131D))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "Narra ao concluir: \"Transferência de 1024MB para 84XXXXXXX Concluída\"",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            color = if (pronunciamentoFinal) Color(0xFF34D399) else Bl4ckTextMuted
+                    Switch(
+                        checked = pronunciamentoFinal,
+                        onCheckedChange = { settingsManager.setPronunciamentoFinal(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Bl4ckPrimary,
+                            uncheckedThumbColor = Bl4ckTextMuted,
+                            uncheckedTrackColor = Color(0xFF1E293B)
                         )
-                    }
+                    )
                 }
             }
 
@@ -554,7 +532,7 @@ fun DefinicoesBottomSheet(
             // Botão de Testar Pronunciamento de Voz
             OutlinedButton(
                 onClick = {
-                    ttsHelper.narrar("Enviando 1024 megas para 841234567. Transferência concluída com sucesso.")
+                    ttsHelper.narrar("Transferência de quinhentos megas concluída com sucesso.")
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),

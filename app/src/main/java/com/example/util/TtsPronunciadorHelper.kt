@@ -2,12 +2,25 @@ package com.example.util
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Gerenciador de Pronúncias por Voz do Bl4ck System.
+ * - Elimina loops e repetições infinitas através de verificação de timestamp e chave de evento única.
+ * - Configura voz de alta qualidade (selecionando vozes premium/não-offline de TTS se disponíveis).
+ * - Modula tom (pitch) e velocidade (speech rate) para dicção natural e clara em Português.
+ * - Formata números de telefone espaçadamente para pronúncia compreensível.
+ */
 class TtsPronunciadorHelper private constructor(private val context: Context) : TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = null
     private var isInitialized = false
+
+    // Cache de deduplicação para impedir que uma mesma frase seja dita em loop
+    private val narracaoDebounceMap = ConcurrentHashMap<String, Long>()
+    private val NARRACAO_DEBOUNCE_MS = 6000L
 
     init {
         tts = TextToSpeech(context.applicationContext, this)
@@ -15,56 +28,129 @@ class TtsPronunciadorHelper private constructor(private val context: Context) : 
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale("pt", "MZ"))
+            val ttsEngine = tts ?: return
+            
+            // Tenta selecionar locale de Português (MZ ou BR)
+            val ptLocale = Locale("pt", "MZ")
+            val result = ttsEngine.setLanguage(ptLocale)
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                // Fallback para português do Brasil ou idioma padrão
-                tts?.setLanguage(Locale("pt", "BR"))
+                ttsEngine.setLanguage(Locale("pt", "BR"))
             }
-            tts?.setSpeechRate(1.0f)
-            tts?.setPitch(1.0f)
+
+            // Otimização de voz para som de alta fidelidade
+            try {
+                val availableVoices = ttsEngine.voices
+                if (!availableVoices.isNullOrEmpty()) {
+                    // Prioriza vozes em português com maior qualidade e menor latência
+                    val bestVoice = availableVoices
+                        .filter { it.locale.language.equals("pt", ignoreCase = true) }
+                        .sortedWith(compareByDescending<Voice> { it.quality }
+                            .thenByDescending { !it.isNetworkConnectionRequired })
+                        .firstOrNull()
+
+                    if (bestVoice != null) {
+                        ttsEngine.voice = bestVoice
+                    }
+                }
+            } catch (_: Exception) {
+                // Em dispositivos sem suporte dinâmico a voices, continua com o default
+            }
+
+            // Ajuste fino para dicção elegante, clara e profissional
+            ttsEngine.setSpeechRate(0.95f) // Velocidade ligeiramente pausada para clareza
+            ttsEngine.setPitch(1.02f)      // Tom harmônico e natural
             isInitialized = true
         }
     }
 
+    /**
+     * Interrompe qualquer áudio em andamento antes de falar
+     */
+    fun pararAudio() {
+        try {
+            tts?.stop()
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Fala o texto fornecido garantindo que não repita a mesma fala em loop.
+     */
     fun narrar(texto: String) {
-        if (!isInitialized || tts == null) {
+        if (!isInitialized || tts == null || texto.isBlank()) {
             return
         }
-        tts?.speak(texto, TextToSpeech.QUEUE_FLUSH, null, "BL4CK_TTS_${System.currentTimeMillis()}")
+
+        val textoLimpo = texto.trim()
+        val now = System.currentTimeMillis()
+        val ultimoDisparo = narracaoDebounceMap[textoLimpo] ?: 0L
+
+        // Se a mesma mensagem foi enviada a menos de 6 segundos, ignora loop
+        if (now - ultimoDisparo < NARRACAO_DEBOUNCE_MS) {
+            return
+        }
+        narracaoDebounceMap[textoLimpo] = now
+
+        // Limpeza periódica do mapa de debounce
+        if (narracaoDebounceMap.size > 50) {
+            val iter = narracaoDebounceMap.entries.iterator()
+            while (iter.hasNext()) {
+                val entry = iter.next()
+                if (now - entry.value > 30_000L) {
+                    iter.remove()
+                }
+            }
+        }
+
+        // QUEUE_FLUSH cancela o áudio anterior para não encavalar nem ficar falando sem parar
+        tts?.speak(textoLimpo, TextToSpeech.QUEUE_FLUSH, null, "BL4CK_TTS_${System.currentTimeMillis()}")
+    }
+
+    /**
+     * Formata um número como "84 123 4567" para que o sintetizador soe natural e não leia como bilhões
+     */
+    private fun formatarNumeroParaFala(numero: String): String {
+        val limpo = numero.replace(Regex("[^0-9]"), "")
+        if (limpo.length >= 8) {
+            // Separa em blocos de dígitos para pronúncia pausada
+            return limpo.chunked(2).joinToString(" ")
+        }
+        return limpo
     }
 
     /**
      * Pronunciamento inicial ao iniciar a transferência:
-     * Ex: "Enviando 1024MB para 84XXXXXXX"
+     * Narra apenas uma única vez no início do pedido.
      */
-    fun narrarInicio(megas: String, numero: String) {
+    fun narrarInicio(displayId: String, megas: String, numero: String) {
         val settings = AppSettingsManager.getInstance(context)
         if (settings.notificacoesGerais.value && settings.pronunciamentoInicial.value) {
             val megasLimpos = megas.replace(Regex("[^0-9]"), "").trim().ifBlank { megas }
-            val texto = "Enviando $megasLimpos megas para $numero"
+            val numeroFalado = formatarNumeroParaFala(numero)
+            val texto = "Iniciando envio de $megasLimpos megas para o número $numeroFalado"
             narrar(texto)
         }
     }
 
     /**
      * Pronunciamento final ao concluir a transferência:
-     * Ex: "Transferência de 1024MB para 84XXXXXXX Concluída"
+     * Narra apenas uma única vez na conclusão do pedido.
      */
-    fun narrarFim(megas: String, numero: String, sucesso: Boolean) {
+    fun narrarFim(displayId: String, megas: String, numero: String, sucesso: Boolean) {
         val settings = AppSettingsManager.getInstance(context)
         if (settings.notificacoesGerais.value && settings.pronunciamentoFinal.value) {
             val megasLimpos = megas.replace(Regex("[^0-9]"), "").trim().ifBlank { megas }
+            val numeroFalado = formatarNumeroParaFala(numero)
             val texto = if (sucesso) {
-                "Transferência de $megasLimpos megas para $numero Concluída"
+                "Transferência de $megasLimpos megas para $numeroFalado concluída com sucesso"
             } else {
-                "Transferência de $megasLimpos megas para $numero requer análise"
+                "Transferência de $megasLimpos megas para $numeroFalado finalizada, requer análise"
             }
             narrar(texto)
         }
     }
 
     fun shutdown() {
-        tts?.stop()
+        pararAudio()
         tts?.shutdown()
         tts = null
         isInitialized = false
