@@ -44,11 +44,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.HistoricoItem
 import com.example.ui.theme.Bl4ckBackground
+import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckError
 import com.example.ui.theme.Bl4ckPrimary
 import com.example.ui.theme.Bl4ckSecondary
 import com.example.ui.theme.Bl4ckSurface
+import com.example.ui.theme.Bl4ckSurfaceElevated
 import com.example.ui.theme.Bl4ckSurfaceVariant
 import com.example.ui.theme.Bl4ckTextMuted
 import com.example.ui.theme.Bl4ckTextPrimary
@@ -92,10 +94,11 @@ fun HistoricoScreen(
                         text = "HISTÓRICO DE OPERAÇÕES",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
                         color = Bl4ckTextPrimary
                     )
                     Text(
-                        text = "Respostas diretas da operadora Vodacom",
+                        text = "Respostas diretas da operadora de telecomunicações",
                         style = MaterialTheme.typography.bodySmall,
                         color = Bl4ckTextSecondary
                     )
@@ -105,21 +108,24 @@ fun HistoricoScreen(
                     IconButton(
                         onClick = onLimparHistorico,
                         modifier = Modifier
+                            .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(Bl4ckSurfaceVariant)
+                            .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(10.dp))
                             .testTag("btn_clear_history")
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Limpar Histórico",
-                            tint = Bl4ckTextMuted
+                            tint = Bl4ckTextMuted,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
         }
 
-        // Filtros (Chips)
+        // Filtros (Chips modernos)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -135,10 +141,17 @@ fun HistoricoScreen(
                     FilterChip(
                         selected = isSelected,
                         onClick = { selectedFilter = key },
-                        label = { Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        shape = RoundedCornerShape(10.dp),
+                        label = {
+                            Text(
+                                label,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = Bl4ckSurface,
-                            selectedContainerColor = Bl4ckPrimary.copy(alpha = 0.15f),
+                            selectedContainerColor = Bl4ckPrimary.copy(alpha = 0.14f),
                             labelColor = Bl4ckTextSecondary,
                             selectedLabelColor = Bl4ckPrimary
                         ),
@@ -146,7 +159,7 @@ fun HistoricoScreen(
                             enabled = true,
                             selected = isSelected,
                             borderColor = Bl4ckBorderSubtle,
-                            selectedBorderColor = Bl4ckPrimary
+                            selectedBorderColor = Bl4ckPrimary.copy(alpha = 0.5f)
                         )
                     )
                 }
@@ -175,17 +188,17 @@ fun HistoricoCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("card_historico_${item.id}"),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
+            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
             width = 1.dp
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(15.dp)
         ) {
             // Linha 1: Badge de Status e Timestamp
             Row(
@@ -198,7 +211,8 @@ fun HistoricoCard(
                 Text(
                     text = item.formattedTime,
                     fontSize = 11.sp,
-                    color = Bl4ckTextMuted
+                    color = Bl4ckTextMuted,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
@@ -213,9 +227,10 @@ fun HistoricoCard(
                 Column {
                     Text(
                         text = item.numeroDestino,
-                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Bl4ckTextPrimary
+                        color = Bl4ckTextPrimary,
+                        fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = "${item.displayId} • SIM ${item.simSlot}",
@@ -229,6 +244,7 @@ fun HistoricoCard(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(Bl4ckSurfaceVariant)
+                        .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
@@ -240,20 +256,24 @@ fun HistoricoCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             // Linha 3: Resposta da operadora capturada pelo serviço de acessibilidade
             if (item.ussdResposta.isNotBlank()) {
                 val respostaFormatada = formatarRespostaOperadoraExibicao(item.ussdResposta)
                 val isSucessoPadrao = respostaFormatada.lowercase().contains("transferiste com sucesso") ||
                         respostaFormatada.lowercase().contains("transferido com sucesso")
 
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF0C131D))
-                        .border(1.dp, if (item.status == "ANALISE") Color(0xFFF59E0B).copy(alpha = 0.4f) else Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF090E17))
+                        .border(
+                            1.dp,
+                            if (item.status == "ANALISE") Color(0xFFF59E0B).copy(alpha = 0.4f) else Bl4ckBorderSubtle,
+                            RoundedCornerShape(10.dp)
+                        )
                         .padding(10.dp)
                 ) {
                     Column {
@@ -288,7 +308,7 @@ fun HistoricoCard(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = respostaFormatada,
                             fontFamily = FontFamily.Monospace,
@@ -320,22 +340,22 @@ private fun formatarRespostaOperadoraExibicao(texto: String): String {
 fun HistoricoStatusBadge(status: String) {
     val (bgColor, textColor, label) = when (status) {
         "CONCLUIDO" -> Triple(
-            Color(0xFF072B1E),
+            Bl4ckPrimary.copy(alpha = 0.12f),
             Bl4ckPrimary,
             "CONCLUÍDO"
         )
         "ANALISE" -> Triple(
-            Color(0xFF332005),
+            Color(0xFFF59E0B).copy(alpha = 0.12f),
             Color(0xFFF59E0B),
             "ANÁLISE"
         )
         "FALHA" -> Triple(
-            Color(0xFF2E1313),
+            Bl4ckError.copy(alpha = 0.12f),
             Bl4ckError,
             "FALHA"
         )
         else -> Triple(
-            Color(0xFF2C2209),
+            Bl4ckWarning.copy(alpha = 0.12f),
             Bl4ckWarning,
             "CANCELADO"
         )
@@ -343,16 +363,29 @@ fun HistoricoStatusBadge(status: String) {
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(bgColor)
+            .border(1.dp, textColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(textColor)
+            )
+            Text(
+                text = label,
+                color = textColor,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+        }
     }
 }
 
@@ -361,43 +394,44 @@ private fun EmptyHistoricoView() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(Bl4ckSurface)
-            .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(14.dp))
+            .border(1.dp, Bl4ckBorder, RoundedCornerShape(18.dp))
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(54.dp)
                 .clip(CircleShape)
-                .background(Bl4ckSurfaceVariant),
+                .background(Bl4ckSurfaceVariant)
+                .border(1.dp, Bl4ckBorder, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.History,
                 contentDescription = null,
                 tint = Bl4ckTextMuted,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Text(
-            text = "Histórico Limpo",
+            text = "Histórico de Transações Vazio",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             color = Bl4ckTextPrimary
         )
 
         Text(
-            text = "As respostas da operadora capturadas durante os envios serão registradas aqui.",
+            text = "As confirmações e respostas USSD da operadora capturadas durante as execuções aparecerão aqui com timestamp preciso.",
             style = MaterialTheme.typography.bodySmall,
             color = Bl4ckTextSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 6.dp)
         )
     }
 }

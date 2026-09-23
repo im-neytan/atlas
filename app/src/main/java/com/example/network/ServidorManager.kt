@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.telephony.SubscriptionManager
 import androidx.core.content.ContextCompat
 import com.example.data.db.Bl4ckDatabase
 import com.example.data.model.HistoricoItem
@@ -110,6 +112,32 @@ class ServidorManager private constructor(private val context: Context) {
 
     init {
         atualizarInformacoesSims()
+        registrarObservadoresSim()
+    }
+
+    private fun registrarObservadoresSim() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                val subManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                subManager?.addOnSubscriptionsChangedListener(object : SubscriptionManager.OnSubscriptionsChangedListener() {
+                    override fun onSubscriptionsChanged() {
+                        super.onSubscriptionsChanged()
+                        atualizarInformacoesSims()
+                    }
+                })
+            }
+
+            val filter = android.content.IntentFilter().apply {
+                addAction("android.telephony.action.DEFAULT_VOICE_SUBSCRIPTION_CHANGED")
+                addAction("android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED")
+                addAction("android.intent.action.SIM_STATE_CHANGED")
+            }
+            context.registerReceiver(object : android.content.BroadcastReceiver() {
+                override fun onReceive(c: Context?, intent: android.content.Intent?) {
+                    atualizarInformacoesSims()
+                }
+            }, filter)
+        } catch (_: Exception) {}
     }
 
     // Motor USSD de Fila
@@ -220,11 +248,15 @@ class ServidorManager private constructor(private val context: Context) {
 
         val targetSubId = if (simSlot == 1) _sim1Info.value.subscriptionId else _sim2Info.value.subscriptionId
         val targetCarrier = if (simSlot == 1) _sim1Info.value.carrierName else _sim2Info.value.carrierName
+        val phoneAccountHandle = SimCardHelper.obterPhoneAccountHandleParaSim(context, simSlot, targetSubId)
 
         return if (hasCallPermission) {
             try {
                 val intent = Intent(Intent.ACTION_CALL, Uri.parse(uriString)).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    if (phoneAccountHandle != null) {
+                        putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, phoneAccountHandle)
+                    }
                     putExtra("com.android.phone.extra.slot", simSlot - 1)
                     putExtra("simSlot", simSlot - 1)
                     putExtra("slot", simSlot - 1)
@@ -484,72 +516,90 @@ class ServidorManager private constructor(private val context: Context) {
     fun atualizarInformacoesSims() {
         scope.launch {
             val dbSims = simCardDao.getAll().associateBy { it.slot }
-            val resolvedList = SimCardHelper.resolverEstadoSimsCompletos(context, dbSims)
-            simCardDao.insertAll(resolvedList)
+            val resolvedList = SimCardHelper.resolverSimsReaisPresentes(context, dbSims)
+            simCardDao.clearAll()
+            if (resolvedList.isNotEmpty()) {
+                simCardDao.insertAll(resolvedList)
+            }
 
             val s1 = resolvedList.firstOrNull { it.slot == 1 }
             val s2 = resolvedList.firstOrNull { it.slot == 2 }
 
-            if (s1 != null) {
-                _sim1Info.value = SimInfo(
-                    slot = 1,
-                    isActive = s1.isActiveVoice,
-                    carrierName = if (s1.isInserted) s1.providerName else "Sem cartões ativos",
-                    remainingSends = s1.remainingSends,
-                    totalLimit = s1.totalLimit,
-                    isInserted = s1.isInserted,
-                    isDefaultVoice = s1.isActiveVoice,
-                    subscriptionId = s1.subscriptionId
-                )
-            }
-            if (s2 != null) {
-                _sim2Info.value = SimInfo(
-                    slot = 2,
-                    isActive = s2.isActiveVoice,
-                    carrierName = if (s2.isInserted) s2.providerName else "Sem cartões ativos",
-                    remainingSends = s2.remainingSends,
-                    totalLimit = s2.totalLimit,
-                    isInserted = s2.isInserted,
-                    isDefaultVoice = s2.isActiveVoice,
-                    subscriptionId = s2.subscriptionId
-                )
-            }
-
-            _activeSim.value = when {
+            val defActive = when {
                 s1?.isActiveVoice == true -> 1
                 s2?.isActiveVoice == true -> 2
-                s1?.isInserted == true -> 1
-                s2?.isInserted == true -> 2
+                s1 != null -> 1
+                s2 != null -> 2
                 else -> 0
             }
+            _activeSim.value = defActive
+
+            _sim1Info.value = SimInfo(
+                slot = 1,
+                isActive = defActive == 1 && s1 != null,
+                carrierName = s1?.providerName ?: "Sem cartões ativos",
+                remainingSends = s1?.remainingSends ?: 10,
+                totalLimit = s1?.totalLimit ?: 10,
+                isInserted = s1 != null,
+                isDefaultVoice = s1?.isActiveVoice == true,
+                subscriptionId = s1?.subscriptionId ?: -1
+            )
+
+            _sim2Info.value = SimInfo(
+                slot = 2,
+                isActive = defActive == 2 && s2 != null,
+                carrierName = s2?.providerName ?: "Sem cartões ativos",
+                remainingSends = s2?.remainingSends ?: 10,
+                totalLimit = s2?.totalLimit ?: 10,
+                isInserted = s2 != null,
+                isDefaultVoice = s2?.isActiveVoice == true,
+                subscriptionId = s2?.subscriptionId ?: -1
+            )
         }
     }
 
-    fun alternarSimAtivo(novoSlot: Int? = null, abrirConfiguracoes: Boolean = true) {
+    fun alternarSimAtivo(novoSlot: Int? = null, abrirConfiguracoes: Boolean = false) {
         val targetSlot = novoSlot ?: if (_activeSim.value == 1) 2 else 1
-        if (targetSlot == 2 && !_sim2Info.value.isInserted) {
-            _lastLogMessage.value = "Aparelho possui apenas 1 SIM card ativo (${_sim1Info.value.carrierName})."
-            return
+        val isTarget1Inserted = _sim1Info.value.isInserted
+        val isTarget2Inserted = _sim2Info.value.isInserted
+
+        val finalTargetSlot = when {
+            targetSlot == 1 && isTarget1Inserted -> 1
+            targetSlot == 2 && isTarget2Inserted -> 2
+            isTarget1Inserted -> 1
+            isTarget2Inserted -> 2
+            else -> targetSlot
         }
 
-        _activeSim.value = targetSlot
+        val targetSubId = if (finalTargetSlot == 1) _sim1Info.value.subscriptionId else _sim2Info.value.subscriptionId
+        val carrierName = if (finalTargetSlot == 1) _sim1Info.value.carrierName else _sim2Info.value.carrierName
+
+        // Aplica a alteração real do SIM padrão de chamadas diretamente no sistema Android (sem abrir definições)
+        val aplicadoSistema = SimCardHelper.aplicarTrocaSimPadraoChamadasSistema(context, finalTargetSlot, targetSubId)
+
+        _activeSim.value = finalTargetSlot
         _sim1Info.value = _sim1Info.value.copy(
-            isActive = targetSlot == 1,
-            isDefaultVoice = targetSlot == 1
+            isActive = finalTargetSlot == 1,
+            isDefaultVoice = finalTargetSlot == 1
         )
         _sim2Info.value = _sim2Info.value.copy(
-            isActive = targetSlot == 2,
-            isDefaultVoice = targetSlot == 2
+            isActive = finalTargetSlot == 2,
+            isDefaultVoice = finalTargetSlot == 2
         )
         scope.launch {
-            simCardDao.setActiveVoiceSlot(targetSlot)
+            simCardDao.setActiveVoiceSlot(finalTargetSlot)
         }
-        val carrierName = if (targetSlot == 1) _sim1Info.value.carrierName else _sim2Info.value.carrierName
-        _lastLogMessage.value = "SIM ativo alterado para SIM $targetSlot ($carrierName)."
+
+        val logInfo = if (aplicadoSistema) {
+            "SIM $finalTargetSlot ($carrierName) ativo e configurado como padrão de chamadas no aparelho."
+        } else {
+            "SIM $finalTargetSlot ($carrierName) ativo e configurado para chamadas."
+        }
+        _lastLogMessage.value = logInfo
         enviarRelatorioEstado()
 
-        if (abrirConfiguracoes && _sim2Info.value.isInserted) {
-            SimCardHelper.abrirConfiguracoesSim(context)
+        if (abrirConfiguracoes) {
+            SimCardHelper.abrirConfiguracoesAlternarSimSistema(context)
         }
     }
 

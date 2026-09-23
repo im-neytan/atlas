@@ -109,7 +109,15 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun alternarSim() {
-        servidorManager.alternarSimAtivo()
+        servidorManager.alternarSimAtivo(abrirConfiguracoes = false)
+    }
+
+    fun alternarParaSim(slot: Int) {
+        servidorManager.alternarSimAtivo(novoSlot = slot, abrirConfiguracoes = false)
+    }
+
+    fun abrirConfiguracoesSistemaSim() {
+        com.example.util.SimCardHelper.abrirConfiguracoesAlternarSimSistema(getApplication())
     }
 
     fun atualizarSims() {

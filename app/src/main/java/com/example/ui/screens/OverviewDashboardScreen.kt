@@ -4,8 +4,14 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,23 +29,29 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SimCard
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -51,7 +63,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -67,9 +81,12 @@ import com.example.ui.theme.Bl4ckBackground
 import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckError
+import com.example.ui.theme.Bl4ckOnPrimary
 import com.example.ui.theme.Bl4ckPrimary
+import com.example.ui.theme.Bl4ckPrimaryGlow
 import com.example.ui.theme.Bl4ckSecondary
 import com.example.ui.theme.Bl4ckSurface
+import com.example.ui.theme.Bl4ckSurfaceElevated
 import com.example.ui.theme.Bl4ckSurfaceVariant
 import com.example.ui.theme.Bl4ckTextMuted
 import com.example.ui.theme.Bl4ckTextPrimary
@@ -146,17 +163,19 @@ fun OverviewDashboardScreen(
             .fillMaxSize()
             .background(Bl4ckBackground),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Header Inicial Executivo: Bem-vindo, Relaxa Bl4ck System a operar
+        // 1. Hero Card: Fintech Mission Control & Live Status
         item {
             ExecutiveWelcomeHeader(
                 connectionStatus = connectionStatus,
-                isEngineRunning = isEngineRunning
+                isEngineRunning = isEngineRunning,
+                currentCountdown = currentCountdown,
+                onAlternarMotor = handleAlternarMotor
             )
         }
 
-        // 2. Grid de Métricas Principais (Fila, Concluídos, SIM, Motor)
+        // 2. Operações & Balanço: Grid 2x2 de Cartões de Métricas
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -167,7 +186,9 @@ fun OverviewDashboardScreen(
                     value = "$aguardandoCount",
                     subValue = if (emProcessamentoCount > 0) "1 em processo" else "Pendentes",
                     accentColor = if (aguardandoCount > 0) Bl4ckSecondary else Bl4ckTextMuted,
-                    modifier = Modifier.weight(1f)
+                    badge = if (aguardandoCount > 0) "EM FILA" else "VAZIO",
+                    modifier = Modifier.weight(1f),
+                    onClick = onVerFilaClick
                 )
 
                 MetricSummaryCard(
@@ -175,7 +196,9 @@ fun OverviewDashboardScreen(
                     value = "$concluidosCount",
                     subValue = if (falhasCount > 0) "$falhasCount falhas" else "100% sucesso",
                     accentColor = Bl4ckPrimary,
-                    modifier = Modifier.weight(1f)
+                    badge = "HISTÓRICO",
+                    modifier = Modifier.weight(1f),
+                    onClick = onVerHistoricoClick
                 )
             }
         }
@@ -188,10 +211,12 @@ fun OverviewDashboardScreen(
                 val hasSims = sim1Info.isInserted || sim2Info.isInserted
                 MetricSummaryCard(
                     title = "CHIP DE CHAMADA",
-                    value = if (!hasSims) "Sem cartões ativos" else activeSimInfo.carrierName,
-                    subValue = if (!hasSims) "Nenhum chip inserido" else "SIM $activeSim • ${activeSimInfo.remainingSends}/${activeSimInfo.totalLimit} envios",
+                    value = if (!hasSims) "Sem cartões" else "SIM $activeSim",
+                    subValue = if (!hasSims) "Nenhum chip inserido" else "${activeSimInfo.carrierName} • ${activeSimInfo.remainingSends}/${activeSimInfo.totalLimit}",
                     accentColor = if (!hasSims) Bl4ckTextMuted else if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckPrimary,
-                    modifier = Modifier.weight(1f)
+                    badge = activeSimInfo.carrierName.take(8),
+                    modifier = Modifier.weight(1f),
+                    onClick = onAlternarSim
                 )
 
                 MetricSummaryCard(
@@ -199,12 +224,14 @@ fun OverviewDashboardScreen(
                     value = if (isEngineRunning) "ATIVO" else "PAUSADO",
                     subValue = if (isEngineRunning && currentCountdown > 0) "${currentCountdown}s próx." else "Ciclo 4-8s",
                     accentColor = if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning,
-                    modifier = Modifier.weight(1f)
+                    badge = if (isEngineRunning) "ONLINE" else "PAUSA",
+                    modifier = Modifier.weight(1f),
+                    onClick = handleAlternarMotor
                 )
             }
         }
 
-        // 3. Controle Operacional Principal
+        // 3. Central de Controle Operacional
         item {
             OperationalControlCard(
                 isEngineRunning = isEngineRunning,
@@ -216,7 +243,16 @@ fun OverviewDashboardScreen(
             )
         }
 
-        // 4. Última Execução e Resposta da Operadora (se houver)
+        // 4. Cartão de Gestão do SIM Ativo com Barra de Quota
+        item {
+            ActiveSimQuotaCard(
+                activeSim = activeSim,
+                activeSimInfo = activeSimInfo,
+                onAlternarSim = onAlternarSim
+            )
+        }
+
+        // 5. Última Execução e Resposta da Operadora (se houver)
         if (ultimoHistorico != null) {
             item {
                 LatestExecutionCard(
@@ -235,13 +271,13 @@ fun OverviewDashboardScreen(
                 OutlinedButton(
                     onClick = onVerFilaClick,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Bl4ckSurface,
                         contentColor = Bl4ckTextPrimary
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle),
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 12.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorder),
+                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -249,8 +285,8 @@ fun OverviewDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Ver Fila", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text("$totalFila pedidos", fontSize = 11.sp, color = Bl4ckTextSecondary)
+                            Text("Ver Fila Completa", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            Text("$totalFila pedidos ativos", fontSize = 11.sp, color = Bl4ckTextSecondary)
                         }
                         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Bl4ckTextMuted, modifier = Modifier.size(18.dp))
                     }
@@ -259,13 +295,13 @@ fun OverviewDashboardScreen(
                 OutlinedButton(
                     onClick = onAlternarSim,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Bl4ckSurface,
                         contentColor = Bl4ckTextPrimary
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle),
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 12.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorder),
+                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -273,10 +309,10 @@ fun OverviewDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Alternar SIM", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text("Agora: SIM $activeSim", fontSize = 11.sp, color = Bl4ckTextSecondary)
+                            Text("Alternar SIM", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            Text("Agora: SIM $activeSim", fontSize = 11.sp, color = Bl4ckPrimary)
                         }
-                        Icon(Icons.Default.SimCard, contentDescription = null, tint = Bl4ckTextMuted, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.SimCard, contentDescription = null, tint = Bl4ckPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -285,27 +321,46 @@ fun OverviewDashboardScreen(
 }
 
 /**
- * Header Executivo Suave:
- * "Bem-vindo"
- * "Relaxa, Bl4ck System a operar"
+ * Header Executivo Fintech / Mission Control:
+ * Mostra status em tempo real, status do WebSocket e controle rápido.
  */
 @Composable
 private fun ExecutiveWelcomeHeader(
     connectionStatus: ConnectionStatus,
-    isEngineRunning: Boolean
+    isEngineRunning: Boolean,
+    currentCountdown: Int,
+    onAlternarMotor: () -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse_radar")
+    val radarPulse by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "radarPulse"
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
+            brush = Brush.verticalGradient(
+                colors = listOf(Bl4ckBorder, Bl4ckBorderSubtle)
+            ),
             width = 1.dp
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Bl4ckSurfaceVariant.copy(alpha = 0.5f), Bl4ckSurface)
+                    )
+                )
                 .padding(18.dp)
         ) {
             Row(
@@ -313,13 +368,17 @@ private fun ExecutiveWelcomeHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Status do Sistema
+                // Status de Operação do Motor
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bl4ckSurfaceVariant)
-                        .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.12f) else Bl4ckSurfaceElevated)
+                        .border(
+                            1.dp,
+                            if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.3f) else Bl4ckBorder,
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -328,30 +387,33 @@ private fun ExecutiveWelcomeHeader(
                         Box(
                             modifier = Modifier
                                 .size(7.dp)
+                                .alpha(if (isEngineRunning) radarPulse else 0.5f)
                                 .clip(CircleShape)
-                                .background(Bl4ckPrimary)
+                                .background(if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning)
                         )
                         Text(
-                            text = "Sistema Automático",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Bl4ckTextSecondary
+                            text = if (isEngineRunning) "MOTOR ATIVO" else "MOTOR PAUSADO",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                            color = if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning
                         )
                     }
                 }
 
-                // Status da Conexão
+                // Status da Conexão WebSocket
                 val (connColor, connLabel) = when (connectionStatus) {
-                    ConnectionStatus.CONNECTED -> Bl4ckPrimary to "Online"
-                    ConnectionStatus.CONNECTING -> Bl4ckWarning to "Conectando"
-                    ConnectionStatus.DISCONNECTED -> Bl4ckTextMuted to "Pronto"
+                    ConnectionStatus.CONNECTED -> Bl4ckPrimary to "WEBSOCKET ONLINE"
+                    ConnectionStatus.CONNECTING -> Bl4ckWarning to "CONECTANDO..."
+                    ConnectionStatus.DISCONNECTED -> Bl4ckTextMuted to "LOCAL STANDBY"
                 }
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(connColor.copy(alpha = 0.12f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(connColor.copy(alpha = 0.1f))
+                        .border(1.dp, connColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -365,36 +427,46 @@ private fun ExecutiveWelcomeHeader(
                         )
                         Text(
                             text = connLabel,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
                             color = connColor
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Bem-vindo",
-                style = MaterialTheme.typography.labelMedium,
-                color = Bl4ckTextSecondary,
-                fontWeight = FontWeight.Medium
-            )
-
-            Text(
-                text = "Relaxa, Bl4ck System a operar.",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Bl4ckTextPrimary,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.5).sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column {
+                    Text(
+                        text = "CENTRAL DE CONTROLE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Bl4ckTextMuted,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.4.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Relaxa, Bl4ck System a operar.",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Bl4ckTextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Card de Métrica Individual com visual corporativo
+ * Card de Métrica Individual com visual Fintech
  */
 @Composable
 private fun MetricSummaryCard(
@@ -402,14 +474,18 @@ private fun MetricSummaryCard(
     value: String,
     subValue: String,
     accentColor: Color,
-    modifier: Modifier = Modifier
+    badge: String? = null,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
+            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
             width = 1.dp
         )
     ) {
@@ -418,29 +494,53 @@ private fun MetricSummaryCard(
                 .fillMaxWidth()
                 .padding(14.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = Bl4ckTextMuted,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Bl4ckTextMuted,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp
+                )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                if (badge != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(accentColor.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = badge,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accentColor
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = value,
-                fontSize = 20.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = accentColor
+                color = accentColor,
+                letterSpacing = (-0.5).sp
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
                 text = subValue,
                 fontSize = 11.sp,
-                color = Bl4ckTextSecondary
+                color = Bl4ckTextSecondary,
+                maxLines = 1
             )
         }
     }
@@ -460,11 +560,11 @@ private fun OperationalControlCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = androidx.compose.ui.graphics.SolidColor(
-                if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.4f) else Bl4ckBorder
+                if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.35f) else Bl4ckBorder
             ),
             width = 1.dp
         )
@@ -481,16 +581,16 @@ private fun OperationalControlCard(
             ) {
                 Column {
                     Text(
-                        text = "Controle de Execução",
+                        text = "Ações Operacionais Rápidas",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Bl4ckTextPrimary
                     )
                     Text(
                         text = if (isEngineRunning) {
-                            if (currentCountdown > 0) "Próximo envio em ${currentCountdown}s" else "Executando pedidos na fila"
+                            if (currentCountdown > 0) "Próximo envio em ${currentCountdown}s (automático)" else "Processando fila em segundo plano"
                         } else {
-                            "Motor em espera. Intervalo configurado: 4 a 8s"
+                            "Motor em pausa. Intervalo configurado: 4 a 8s"
                         },
                         fontSize = 12.sp,
                         color = if (isEngineRunning) Bl4ckPrimary else Bl4ckTextSecondary
@@ -501,11 +601,12 @@ private fun OperationalControlCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Bl4ckPrimary.copy(alpha = 0.15f))
+                            .background(Bl4ckPrimary.copy(alpha = 0.12f))
+                            .border(1.dp, Bl4ckPrimary.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "AUTOMÁTICO",
+                            text = "AUTO 4-8s",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Bl4ckPrimary
@@ -518,15 +619,15 @@ private fun OperationalControlCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Button(
                     onClick = onAlternarMotor,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isEngineRunning) Bl4ckSurfaceVariant else Bl4ckPrimary,
-                        contentColor = if (isEngineRunning) Bl4ckError else Bl4ckBackground
+                        containerColor = if (isEngineRunning) Bl4ckSurfaceElevated else Bl4ckPrimary,
+                        contentColor = if (isEngineRunning) Bl4ckError else Bl4ckOnPrimary
                     ),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1.3f).testTag("btn_toggle_engine")
                 ) {
                     Icon(
@@ -535,10 +636,10 @@ private fun OperationalControlCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = if (isEngineRunning) "Pausar" else "Iniciar Motor",
+                        text = if (isEngineRunning) "Pausar Motor" else "Iniciar Motor",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 4.dp)
+                        modifier = Modifier.padding(start = 6.dp)
                     )
                 }
 
@@ -548,7 +649,7 @@ private fun OperationalControlCard(
                         containerColor = Bl4ckSurfaceVariant,
                         contentColor = Bl4ckTextPrimary
                     ),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1.3f).testTag("btn_new_transfer")
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = Bl4ckPrimary)
@@ -563,9 +664,9 @@ private fun OperationalControlCard(
                 if (!isEngineRunning && hasPending) {
                     OutlinedButton(
                         onClick = onProcessarProximo,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckSecondary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckSecondary.copy(alpha = 0.4f)),
                         modifier = Modifier.weight(0.9f)
                     ) {
                         Text("Disparar 1", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
@@ -577,25 +678,24 @@ private fun OperationalControlCard(
 }
 
 /**
- * Painel de Serviços do Sistema e Permissões
- * (Leitura de Tela/Acessibilidade, Chamadas, Sobreposição)
+ * Card dedicado de Quota e Status do SIM ativo
  */
 @Composable
-private fun SystemServicesCard(
-    isAccessibilityActive: Boolean,
-    isCallGranted: Boolean,
-    isOverlayGranted: Boolean,
-    onRequestCall: () -> Unit,
-    onOpenAccessibility: () -> Unit,
-    onOpenOverlay: () -> Unit,
-    onRefresh: () -> Unit
+private fun ActiveSimQuotaCard(
+    activeSim: Int,
+    activeSimInfo: SimInfo,
+    onAlternarSim: () -> Unit
 ) {
+    val totalLimit = if (activeSimInfo.totalLimit > 0) activeSimInfo.totalLimit else 100
+    val usedSends = (totalLimit - activeSimInfo.remainingSends).coerceAtLeast(0)
+    val progress = (usedSends.toFloat() / totalLimit.toFloat()).coerceIn(0f, 1f)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
+            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
             width = 1.dp
         )
     ) {
@@ -609,243 +709,86 @@ private fun SystemServicesCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Serviços & Permissões do Sistema",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Bl4ckTextPrimary
-                )
-
-                IconButton(
-                    onClick = onRefresh,
-                    modifier = Modifier.size(28.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Atualizar Status",
-                        tint = Bl4ckTextMuted,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 1. Serviço de Acessibilidade (Automação precisa *162# e captura de resposta)
-            ServiceStatusRow(
-                title = "Automação & Leitura (Acessibilidade)",
-                subtitle = "Interação em *162# e captura da resposta final",
-                isOk = isAccessibilityActive,
-                actionLabel = if (isAccessibilityActive) "Ativo" else "Ativar",
-                onClickAction = onOpenAccessibility
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 2. Chamadas Telefônicas (Disparo do código *162#)
-            ServiceStatusRow(
-                title = "Chamadas Telefônicas",
-                subtitle = "Disparo inicial do código *162#",
-                isOk = isCallGranted,
-                actionLabel = if (isCallGranted) "Concedido" else "Autorizar",
-                onClickAction = onRequestCall
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 3. Sobreposição de Telas
-            ServiceStatusRow(
-                title = "Sobreposição a Outros Apps",
-                subtitle = "Interação em segundo plano",
-                isOk = isOverlayGranted,
-                actionLabel = if (isOverlayGranted) "Habilitado" else "Habilitar",
-                onClickAction = onOpenOverlay
-            )
-        }
-    }
-}
-
-/**
- * Cartão exibindo o roteiro do fluxo preciso interativo *162#
- */
-@Composable
-fun UssdSequenceFlowCard(modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
-            width = 1.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "FLUXO PRECISO DE EXECUÇÃO (*162#)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Bl4ckSecondary,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Bl4ckPrimary.copy(alpha = 0.15f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "MODO USSD",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Bl4ckPrimary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            val passos = listOf(
-                "1" to "*162#",
-                "2" to "Espera ➔ Opção '8'",
-                "3" to "Espera ➔ Opção '2'",
-                "4" to "Espera ➔ Digita Megas",
-                "5" to "Espera ➔ Digita Número",
-                "✓" to "Captura Resposta Final"
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                passos.take(3).forEach { (num, desc) ->
                     Box(
                         modifier = Modifier
-                            .weight(1f)
+                            .size(32.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Bl4ckSurfaceVariant)
-                            .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
-                            .padding(8.dp)
+                            .border(1.dp, Bl4ckBorder, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column {
-                            Text(text = "Passo $num", fontSize = 9.sp, color = Bl4ckTextMuted, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = desc, fontSize = 10.sp, color = Bl4ckTextPrimary, fontWeight = FontWeight.SemiBold)
-                        }
+                        Icon(
+                            Icons.Default.SimCard,
+                            contentDescription = null,
+                            tint = Bl4ckPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "SIM $activeSim • ${activeSimInfo.carrierName}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Bl4ckTextPrimary
+                        )
+                        Text(
+                            text = "Chip selecionado para chamadas USSD",
+                            fontSize = 11.sp,
+                            color = Bl4ckTextSecondary
+                        )
                     }
                 }
+
+                Button(
+                    onClick = onAlternarSim,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Bl4ckSurfaceElevated,
+                        contentColor = Bl4ckPrimary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("Trocar SIM", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Barra de Progresso da Quota do Dia
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Quota Diária de Envios",
+                    fontSize = 11.sp,
+                    color = Bl4ckTextMuted,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "${activeSimInfo.remainingSends} restantes de $totalLimit",
+                    fontSize = 11.sp,
+                    color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckTextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                passos.drop(3).forEach { (num, desc) ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (num == "✓") Bl4ckPrimary.copy(alpha = 0.12f) else Bl4ckSurfaceVariant)
-                            .border(1.dp, if (num == "✓") Bl4ckPrimary.copy(alpha = 0.4f) else Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
-                            .padding(8.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = if (num == "✓") "Conclusão" else "Passo $num",
-                                fontSize = 9.sp,
-                                color = if (num == "✓") Bl4ckPrimary else Bl4ckTextMuted,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = desc,
-                                fontSize = 10.sp,
-                                color = if (num == "✓") Bl4ckPrimary else Bl4ckTextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ServiceStatusRow(
-    title: String,
-    subtitle: String,
-    isOk: Boolean,
-    actionLabel: String,
-    onClickAction: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Bl4ckSurfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Bl4ckTextPrimary
-            )
-            Text(
-                text = subtitle,
-                fontSize = 10.sp,
-                color = Bl4ckTextMuted
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        if (isOk) {
-            Box(
+            LinearProgressIndicator(
+                progress = { progress },
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Bl4ckPrimary.copy(alpha = 0.15f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "✓ $actionLabel",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Bl4ckPrimary
-                )
-            }
-        } else {
-            Button(
-                onClick = onClickAction,
-                shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Bl4ckWarning,
-                    contentColor = Bl4ckBackground
-                ),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier.height(30.dp)
-            ) {
-                Text(
-                    text = actionLabel,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckPrimary,
+                trackColor = Bl4ckSurfaceVariant
+            )
         }
     }
 }
@@ -863,7 +806,7 @@ private fun LatestExecutionCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
+            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
             width = 1.dp
         )
     ) {
@@ -903,7 +846,8 @@ private fun LatestExecutionCard(
                         text = item.numeroDestino,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Bl4ckTextPrimary
+                        color = Bl4ckTextPrimary,
+                        fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = "${item.megas} MB • SIM ${item.simSlot}",
@@ -924,18 +868,18 @@ private fun LatestExecutionCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF0D1420))
-                        .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF0A0F17))
+                        .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(10.dp))
                         .padding(10.dp)
                 ) {
                     Column {
                         Text(
                             text = "RESPOSTA DA OPERADORA:",
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = Bl4ckTextMuted,
-                            fontFamily = FontFamily.Monospace
+                            letterSpacing = 0.5.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

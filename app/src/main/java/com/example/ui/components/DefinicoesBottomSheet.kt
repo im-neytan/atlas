@@ -650,14 +650,14 @@ private fun SobreCorporacaoSection() {
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Header com Logo Aura Tech e Identidade Corporativa
+                    // Header com Logo Oficial e Identidade Corporativa
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.aura_tech_pro_lightning_1790114606913),
+                            painter = painterResource(id = R.drawable.ic_app_logo),
                             contentDescription = "Logo BL4CK_SOLUTIONS",
                             modifier = Modifier
                                 .size(48.dp)
@@ -774,6 +774,24 @@ private fun SobreCorporacaoSection() {
                                 )
                                 Text(
                                     text = "Fundação: 2026",
+                                    fontSize = 11.sp,
+                                    color = Bl4ckTextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = Bl4ckPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Versão do App: 1.0 (Build 1)",
                                     fontSize = 11.sp,
                                     color = Bl4ckTextPrimary,
                                     fontWeight = FontWeight.Medium

@@ -83,6 +83,7 @@ import com.example.ui.theme.Bl4ckSecondary
 import com.example.ui.theme.Bl4ckSurface
 import com.example.ui.theme.Bl4ckSurfaceVariant
 import com.example.ui.theme.Bl4ckTextMuted
+import com.example.ui.theme.Bl4ckWarning
 import com.example.ui.theme.Bl4ckTextPrimary
 import com.example.ui.theme.Bl4ckTextSecondary
 import com.example.ui.theme.MyApplicationTheme
@@ -197,46 +198,84 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     Scaffold(
         containerColor = Bl4ckBackground,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.aura_tech_pro_lightning_1790114606913),
-                            contentDescription = null,
+            Column {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black)
+                                    .border(1.dp, Bl4ckBorder, RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_app_logo),
+                                    contentDescription = "Logo Oficial",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text(
+                                    text = "BL4CK SYSTEM",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    letterSpacing = 1.4.sp,
+                                    color = Bl4ckTextPrimary
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning)
+                                    )
+                                    Text(
+                                        text = if (isEngineRunning) "OPERACIONAL" else "STANDBY",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { viewModel.openDefinicoesModal() },
                             modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "BL4CK SYSTEM",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            letterSpacing = 1.2.sp,
-                            color = Bl4ckTextPrimary
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.openDefinicoesModal() },
-                        modifier = Modifier.padding(end = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Definições",
-                            tint = Bl4ckTextSecondary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Bl4ckSurface
+                                .padding(end = 8.dp)
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Bl4ckSurfaceVariant)
+                                .border(1.dp, Bl4ckBorder, RoundedCornerShape(10.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Definições",
+                                tint = Bl4ckTextPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Bl4ckBackground
+                    )
                 )
-            )
+                HorizontalDivider(
+                    color = Bl4ckBorderSubtle,
+                    thickness = 1.dp
+                )
+            }
         },
         bottomBar = {
             Column {
@@ -264,12 +303,12 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                                         badge = {
                                             Badge(
                                                 containerColor = Bl4ckPrimary,
-                                                contentColor = Color(0xFF0F172A)
+                                                contentColor = Color(0xFF041E15)
                                             ) {
                                                 Text(
                                                     text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString(),
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.ExtraBold
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold
                                                 )
                                             }
                                         }
@@ -277,14 +316,14 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                                         Icon(
                                             imageVector = currentIcon,
                                             contentDescription = item.title,
-                                            modifier = Modifier.size(23.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 } else {
                                     Icon(
                                         imageVector = currentIcon,
                                         contentDescription = item.title,
-                                        modifier = Modifier.size(23.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             },
@@ -292,14 +331,14 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                                 Text(
                                     text = item.title,
                                     fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     letterSpacing = 0.2.sp
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Bl4ckPrimary,
                                 selectedTextColor = Bl4ckPrimary,
-                                indicatorColor = Bl4ckPrimary.copy(alpha = 0.12f),
+                                indicatorColor = Bl4ckPrimary.copy(alpha = 0.14f),
                                 unselectedIconColor = Bl4ckTextMuted,
                                 unselectedTextColor = Bl4ckTextMuted
                             ),
@@ -368,6 +407,8 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                         connectionStatus = connectionStatus,
                         serverUrl = serverUrl,
                         onAlternarSim = { viewModel.alternarSim() },
+                        onAlternarParaSim = { slot -> viewModel.alternarParaSim(slot) },
+                        onAbrirConfiguracoesSistema = { viewModel.abrirConfiguracoesSistemaSim() },
                         onConectarWebSocket = { viewModel.conectarWebSocket(it) },
                         onAlternarConexao = { viewModel.alternarConexao() },
                         onSimularComando = { viewModel.simularComandoRemoto(it) },

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,10 +31,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhoneDisabled
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.SimCardAlert
@@ -93,6 +96,7 @@ fun ControleSimsScreen(
     connectionStatus: ConnectionStatus,
     serverUrl: String,
     onAlternarSim: () -> Unit,
+    onAlternarParaSim: (slot: Int) -> Unit = {},
     onConectarWebSocket: (String) -> Unit,
     onAlternarConexao: () -> Unit,
     onSimularComando: (String) -> Unit,
@@ -107,30 +111,39 @@ fun ControleSimsScreen(
     var editingSlot by remember { mutableStateOf<Int?>(null) }
     var editNumberValue by remember { mutableStateOf("") }
 
-    // Obter ou construir o estado real para ambos os slots (Slot 1 e Slot 2)
-    val sim1 = simCards.firstOrNull { it.slot == 1 } ?: SimCard(
-        slot = 1,
-        providerName = if (sim1Info.isInserted) sim1Info.carrierName else "Nenhum provedor",
-        phoneNumber = "Não gravado no chip",
-        status = if (sim1Info.isInserted) (if (activeSim == 1) "Ativo para Chamadas" else "Standby") else "Ausente / Slot Vazio",
-        isInserted = sim1Info.isInserted,
-        isActiveVoice = activeSim == 1,
-        remainingSends = sim1Info.remainingSends,
-        totalLimit = sim1Info.totalLimit
-    )
+    // Filtra EXCLUSIVAMENTE os cartões SIM reais presentes no dispositivo detectados via SubscriptionManager
+    val cartoesReais = if (simCards.isNotEmpty()) {
+        simCards.filter { it.isInserted }
+    } else {
+        listOfNotNull(
+            if (sim1Info.isInserted) SimCard(
+                slot = 1,
+                providerName = sim1Info.carrierName,
+                phoneNumber = "Não gravado no chip",
+                status = if (activeSim == 1) "Ativo para Chamadas" else "Standby",
+                isInserted = true,
+                isActiveVoice = activeSim == 1,
+                remainingSends = sim1Info.remainingSends,
+                totalLimit = sim1Info.totalLimit,
+                subscriptionId = sim1Info.subscriptionId,
+                displayName = "SIM 1"
+            ) else null,
+            if (sim2Info.isInserted) SimCard(
+                slot = 2,
+                providerName = sim2Info.carrierName,
+                phoneNumber = "Não gravado no chip",
+                status = if (activeSim == 2) "Ativo para Chamadas" else "Standby",
+                isInserted = true,
+                isActiveVoice = activeSim == 2,
+                remainingSends = sim2Info.remainingSends,
+                totalLimit = sim2Info.totalLimit,
+                subscriptionId = sim2Info.subscriptionId,
+                displayName = "SIM 2"
+            ) else null
+        )
+    }
 
-    val sim2 = simCards.firstOrNull { it.slot == 2 } ?: SimCard(
-        slot = 2,
-        providerName = if (sim2Info.isInserted) sim2Info.carrierName else "Nenhum provedor",
-        phoneNumber = "Não gravado no chip",
-        status = if (sim2Info.isInserted) (if (activeSim == 2) "Ativo para Chamadas" else "Standby") else "Slot 2 Vazio / Nenhum cartão inserido",
-        isInserted = sim2Info.isInserted,
-        isActiveVoice = activeSim == 2,
-        remainingSends = sim2Info.remainingSends,
-        totalLimit = sim2Info.totalLimit
-    )
-
-    val totalSimsReais = listOf(sim1, sim2).count { it.isInserted }
+    val totalSimsReais = cartoesReais.size
 
     LazyColumn(
         modifier = modifier
@@ -148,12 +161,13 @@ fun ControleSimsScreen(
                 sim1Info = sim1Info,
                 sim2Info = sim2Info,
                 onAlternarSim = onAlternarSim,
+                onAlternarParaSim = onAlternarParaSim,
                 onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema
             )
         }
 
         // -------------------------------------------------------------
-        // 2. ESTADO REAL DOS DOIS SLOTS DE SIM (2, 1 OU NENHUM)
+        // 2. LISTA EXCLUSIVA DOS CARTÕES REAIS PRESENTES (SUBSCRIPTIONMANAGER)
         // -------------------------------------------------------------
         item {
             Row(
@@ -163,7 +177,7 @@ fun ControleSimsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "ESTADO REAL DOS CARTÕES SIM (ROOM)",
+                        text = "CARTÕES SIM REAIS (SUBSCRIPTIONMANAGER)",
                         style = MaterialTheme.typography.labelSmall,
                         color = Bl4ckSecondary,
                         fontWeight = FontWeight.Bold,
@@ -171,9 +185,9 @@ fun ControleSimsScreen(
                     )
                     Text(
                         text = when (totalSimsReais) {
-                            2 -> "2 SIMs detectados no telefone (Dual SIM)"
-                            1 -> "1 SIM detectado no telefone (Single SIM)"
-                            else -> "Nenhum SIM detectado no telefone (0 cartões)"
+                            2 -> "2 cartões SIM detectados no aparelho (Dual SIM)"
+                            1 -> "1 cartão SIM detectado no aparelho (Single SIM)"
+                            else -> "Nenhum cartão SIM real detectado (0 cartões)"
                         },
                         fontSize = 11.sp,
                         color = if (totalSimsReais > 0) Bl4ckTextSecondary else Bl4ckError
@@ -208,34 +222,95 @@ fun ControleSimsScreen(
             }
         }
 
-        // Mostra o SIM 1 (sempre exibido para reportar estado real: inserido ou ausente)
-        item {
-            RealSimCardDetailCard(
-                simCard = sim1,
-                isActiveVoice = activeSim == 1 && sim1.isInserted,
-                onAlternarSim = { if (activeSim != 1 && sim1.isInserted) onAlternarSim() },
-                onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema,
-                onEditarNumero = {
-                    editingSlot = 1
-                    editNumberValue = if (sim1.phoneNumber != "Não gravado no chip" && sim1.phoneNumber != "N/A") sim1.phoneNumber else ""
-                },
-                onResetLimits = { onAtualizarLimiteManual(1, 10, 10) }
-            )
-        }
-
-        // Mostra o SIM 2 (sempre exibido para reportar estado real: inserido ou ausente)
-        item {
-            RealSimCardDetailCard(
-                simCard = sim2,
-                isActiveVoice = activeSim == 2 && sim2.isInserted,
-                onAlternarSim = { if (activeSim != 2 && sim2.isInserted) onAlternarSim() },
-                onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema,
-                onEditarNumero = {
-                    editingSlot = 2
-                    editNumberValue = if (sim2.phoneNumber != "Não gravado no chip" && sim2.phoneNumber != "N/A") sim2.phoneNumber else ""
-                },
-                onResetLimits = { onAtualizarLimiteManual(2, 10, 10) }
-            )
+        if (cartoesReais.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("card_sim_empty_state"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
+                        width = 1.dp
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SimCardAlert,
+                            contentDescription = null,
+                            tint = Bl4ckError,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = "Nenhum Cartão SIM Real Detectado",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Bl4ckTextPrimary
+                        )
+                        Text(
+                            text = "A API SubscriptionManager não identificou nenhum chip físico ou eSIM ativo inserido neste aparelho. Insira um cartão SIM ou configure-o no sistema Android.",
+                            fontSize = 12.sp,
+                            color = Bl4ckTextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onAbrirConfiguracoesSistema,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckSecondary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Config. Sistema", fontSize = 11.sp)
+                            }
+                            Button(
+                                onClick = onAtualizarSims,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Bl4ckPrimary,
+                                    contentColor = Color(0xFF0F172A)
+                                )
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Reescanear", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            items(cartoesReais, key = { it.slot }) { simCard ->
+                RealSimCardDetailCard(
+                    simCard = simCard,
+                    isActiveVoice = activeSim == simCard.slot,
+                    isDualSim = cartoesReais.size > 1,
+                    onDefinirComoPadrao = {
+                        onAlternarParaSim(simCard.slot)
+                    },
+                    onAbrirConfiguracoesSistema = onAbrirConfiguracoesSistema,
+                    onEditarNumero = {
+                        editingSlot = simCard.slot
+                        editNumberValue = if (simCard.phoneNumber != "Não gravado no chip" && simCard.phoneNumber != "N/A") simCard.phoneNumber else ""
+                    },
+                    onResetLimits = { onAtualizarLimiteManual(simCard.slot, 10, 10) }
+                )
+            }
         }
 
         // -------------------------------------------------------------
@@ -328,7 +403,9 @@ private fun ActiveSimHeaderCard(
     activeSim: Int,
     sim1Info: SimInfo,
     sim2Info: SimInfo,
-    onAlternarSim: () -> Unit
+    onAlternarSim: () -> Unit,
+    onAlternarParaSim: (Int) -> Unit = {},
+    onAbrirConfiguracoesSistema: () -> Unit = {}
 ) {
     val hasAnySim = sim1Info.isInserted || sim2Info.isInserted
     val isDualSim = sim1Info.isInserted && sim2Info.isInserted
@@ -439,7 +516,7 @@ private fun ActiveSimHeaderCard(
                         remaining = "${sim1Info.remainingSends}/${sim1Info.totalLimit}",
                         isLimitReached = sim1Info.isLimitReached,
                         modifier = Modifier.weight(1f),
-                        onClick = { if (activeSim != 1) onAlternarSim() }
+                        onClick = { if (activeSim != 1) onAlternarParaSim(1) }
                     )
 
                     SimSlotButton(
@@ -449,30 +526,30 @@ private fun ActiveSimHeaderCard(
                         remaining = "${sim2Info.remainingSends}/${sim2Info.totalLimit}",
                         isLimitReached = sim2Info.isLimitReached,
                         modifier = Modifier.weight(1f),
-                        onClick = { if (activeSim != 2) onAlternarSim() }
+                        onClick = { if (activeSim != 2) onAlternarParaSim(2) }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Botão Manual de Troca Rápida de SIM de Chamada
+                // Botão de Troca Direta sem abrir configurações
                 Button(
                     onClick = onAlternarSim,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
                         .testTag("btn_alternar_sim"),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Bl4ckSurfaceVariant,
-                        contentColor = Bl4ckSecondary
+                        containerColor = Bl4ckPrimary,
+                        contentColor = Bl4ckOnPrimary
                     )
                 ) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = null)
+                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(
-                        text = "Alternar Linha Principal (SIM 1 ⇄ SIM 2)",
+                        text = "Trocar Cartão em Uso (SIM 1 ⇄ SIM 2)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         modifier = Modifier.padding(start = 6.dp)
                     )
                 }
@@ -512,7 +589,7 @@ private fun ActiveSimHeaderCard(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Slot ${singleSim.slot} • Linha principal para chamadas e dados USSD",
+                                text = "SIM ${singleSim.slot} • Linha ativa para chamadas e dados USSD",
                                 fontSize = 12.sp,
                                 color = Bl4ckTextSecondary
                             )
@@ -536,6 +613,20 @@ private fun ActiveSimHeaderCard(
                             )
                         }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onAbrirConfiguracoesSistema,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckSecondary),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Gerenciar Contas de Chamada no Sistema Android", fontSize = 12.sp)
                 }
             }
         }
@@ -945,28 +1036,24 @@ private fun BotCommandsSimulatorCard(
 private fun RealSimCardDetailCard(
     simCard: SimCard,
     isActiveVoice: Boolean,
-    onAlternarSim: () -> Unit,
+    isDualSim: Boolean,
+    onDefinirComoPadrao: () -> Unit,
+    onAbrirConfiguracoesSistema: () -> Unit,
     onEditarNumero: () -> Unit,
     onResetLimits: () -> Unit
 ) {
-    val isInserted = simCard.isInserted
-    val statusColor = when {
-        !isInserted -> Bl4ckTextMuted
-        isActiveVoice -> Bl4ckPrimary
-        else -> Bl4ckSecondary
-    }
+    val statusColor = if (isActiveVoice) Bl4ckPrimary else Bl4ckSecondary
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("card_sim_slot_${simCard.slot}"),
+            .testTag("card_sim_slot_${simCard.slot}")
+            .clickable(enabled = !isActiveVoice) { onDefinirComoPadrao() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isInserted) Bl4ckSurface else Bl4ckSurfaceVariant.copy(alpha = 0.5f)
-        ),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = androidx.compose.ui.graphics.SolidColor(
-                if (isActiveVoice) Bl4ckPrimary.copy(alpha = 0.8f) else Bl4ckBorderSubtle
+                if (isActiveVoice) Bl4ckPrimary.copy(alpha = 0.85f) else Bl4ckBorderSubtle
             ),
             width = if (isActiveVoice) 1.5.dp else 1.dp
         )
@@ -976,7 +1063,7 @@ private fun RealSimCardDetailCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Cabeçalho: Slot & Indicador de Status Real
+            // Cabeçalho: ID (SIM 1 / SIM 2), Operadora e Badge de Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -984,31 +1071,40 @@ private fun RealSimCardDetailCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(if (isActiveVoice) Bl4ckPrimary else Bl4ckSurfaceVariant)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = "SLOT ${simCard.slot}",
-                            fontSize = 11.sp,
+                            text = "SIM ${simCard.slot}",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (isActiveVoice) Color(0xFF0F172A) else Bl4ckTextSecondary
+                            color = if (isActiveVoice) Color(0xFF0F172A) else Bl4ckTextPrimary
                         )
                     }
 
-                    Text(
-                        text = if (isInserted) simCard.providerName else "Nenhum Cartão",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = if (isInserted) Bl4ckTextPrimary else Bl4ckTextMuted
-                    )
+                    Column {
+                        Text(
+                            text = simCard.providerName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = Bl4ckTextPrimary
+                        )
+                        if (simCard.subscriptionId >= 0) {
+                            Text(
+                                text = "Subscription ID: #${simCard.subscriptionId}",
+                                fontSize = 10.sp,
+                                color = Bl4ckTextMuted
+                            )
+                        }
+                    }
                 }
 
-                // Badge de Status Real
+                // Badge de Status do SIM
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1020,11 +1116,7 @@ private fun RealSimCardDetailCard(
                             .background(statusColor)
                     )
                     Text(
-                        text = when {
-                            !isInserted -> "Slot Vazio"
-                            isActiveVoice -> "Ativo p/ Chamadas"
-                            else -> "Standby"
-                        },
+                        text = if (isActiveVoice) "Padrão Chamadas" else "Standby",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = statusColor
@@ -1034,7 +1126,7 @@ private fun RealSimCardDetailCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Detalhes: Provedor, Número de Telefone e Status Real
+            // Detalhes: Operadora, Número e Status de Chamadas
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1043,17 +1135,17 @@ private fun RealSimCardDetailCard(
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Nome do Provedor
+                // Operadora
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Provedor:", fontSize = 12.sp, color = Bl4ckTextMuted)
+                    Text("Operadora:", fontSize = 12.sp, color = Bl4ckTextMuted)
                     Text(
-                        text = if (isInserted) simCard.providerName else "Sem cartão no slot",
+                        text = simCard.providerName,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isInserted) Bl4ckTextPrimary else Bl4ckTextMuted
+                        color = Bl4ckTextPrimary
                     )
                 }
 
@@ -1063,16 +1155,16 @@ private fun RealSimCardDetailCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Número:", fontSize = 12.sp, color = Bl4ckTextMuted)
+                    Text("Número no Chip:", fontSize = 12.sp, color = Bl4ckTextMuted)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = if (simCard.phoneNumber.isNotBlank()) simCard.phoneNumber else "Não informado",
+                            text = if (simCard.phoneNumber.isNotBlank()) simCard.phoneNumber else "Não gravado",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isInserted) Bl4ckPrimary else Bl4ckTextMuted
+                            color = Bl4ckPrimary
                         )
                         IconButton(
                             onClick = onEditarNumero,
@@ -1088,14 +1180,14 @@ private fun RealSimCardDetailCard(
                     }
                 }
 
-                // Status Real Reportado
+                // Status de Chamadas e USSD
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Status Real:", fontSize = 12.sp, color = Bl4ckTextMuted)
+                    Text("Canal Telefônico:", fontSize = 12.sp, color = Bl4ckTextMuted)
                     Text(
-                        text = simCard.status,
+                        text = if (isActiveVoice) "Padrão para Chamadas / USSD" else "Secundário / Em espera",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = statusColor
@@ -1103,78 +1195,91 @@ private fun RealSimCardDetailCard(
                 }
             }
 
-            if (isInserted) {
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                // Cota de envios restantes
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Envios restantes: ${simCard.remainingSends}/${simCard.totalLimit}",
-                        fontSize = 12.sp,
-                        color = Bl4ckTextSecondary,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = if (simCard.remainingSends == 0) "Limite atingido" else "${(simCard.remainingSends * 100) / simCard.totalLimit}%",
-                        fontSize = 11.sp,
-                        color = if (simCard.remainingSends == 0) Bl4ckError else Bl4ckSecondary
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                val progress = (simCard.remainingSends.toFloat() / simCard.totalLimit.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = if (simCard.remainingSends == 0) Bl4ckError else Bl4ckPrimary,
-                    trackColor = Bl4ckSurfaceVariant
+            // Cota de envios restantes
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Envios restantes: ${simCard.remainingSends}/${simCard.totalLimit}",
+                    fontSize = 12.sp,
+                    color = Bl4ckTextSecondary,
+                    fontWeight = FontWeight.Medium
                 )
+                Text(
+                    text = if (simCard.remainingSends == 0) "Limite atingido" else "${(simCard.remainingSends * 100) / simCard.totalLimit}%",
+                    fontSize = 11.sp,
+                    color = if (simCard.remainingSends == 0) Bl4ckError else Bl4ckSecondary
+                )
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (!isActiveVoice) {
-                        Button(
-                            onClick = onAlternarSim,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Bl4ckPrimary,
-                                contentColor = Color(0xFF0F172A)
-                            )
+            val progress = (simCard.remainingSends.toFloat() / simCard.totalLimit.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = if (simCard.remainingSends == 0) Bl4ckError else Bl4ckPrimary,
+                trackColor = Bl4ckSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Ações: Alternância real do SIM padrão para chamadas através do sistema
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!isActiveVoice) {
+                    Button(
+                        onClick = onDefinirComoPadrao,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_definir_padrao_sim_${simCard.slot}"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Bl4ckPrimary,
+                            contentColor = Bl4ckOnPrimary
+                        )
+                    ) {
+                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Usar SIM ${simCard.slot} p/ Chamadas", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Bl4ckPrimary.copy(alpha = 0.12f))
+                            .border(1.dp, Bl4ckPrimary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                            .padding(vertical = 10.dp, horizontal = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text("Definir como Principal", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Bl4ckPrimary, modifier = Modifier.size(15.dp))
+                            Text("SIM Padrão Ativo no Telefone", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Bl4ckPrimary)
                         }
                     }
-
-                    OutlinedButton(
-                        onClick = onResetLimits,
-                        modifier = if (isActiveVoice) Modifier.fillMaxWidth() else Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckTextSecondary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
-                    ) {
-                        Text("Resetar Cota (10)", fontSize = 12.sp)
-                    }
                 }
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Nenhum cartão SIM detectado pelo hardware neste slot.",
-                    fontSize = 11.sp,
-                    color = Bl4ckTextMuted
-                )
+
+                OutlinedButton(
+                    onClick = onResetLimits,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckTextSecondary),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorderSubtle)
+                ) {
+                    Text("Resetar (10)", fontSize = 11.sp)
+                }
             }
         }
     }

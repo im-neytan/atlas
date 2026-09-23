@@ -6,10 +6,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 
 import com.example.data.model.SimCard
@@ -178,126 +180,208 @@ object SimCardHelper {
     }
 
     /**
-     * Resolve o estado real e detalhado dos DOIS slots de SIM do aparelho (SIM 1 e SIM 2),
-     * cobrindo os cenários de 2 SIMs, 1 SIM ou nenhum SIM (0).
+     * Resolve o estado dos cartões SIM REAIS presentes no aparelho (0, 1 ou 2 SIMs).
+     * Retorna EXCLUSIVAMENTE os cartões físicos/eSIM reais que estão inseridos e ativos,
+     * sem criar slots vazios fictícios como se fossem cartões presentes.
      */
-    fun resolverEstadoSimsCompletos(
+    fun resolverSimsReaisPresentes(
         context: Context,
         simsExistentesDb: Map<Int, SimCard> = emptyMap()
     ): List<SimCard> {
         val detected = detectarSimsReais(context)
         val now = System.currentTimeMillis()
 
-        // Identifica SIM do slot 1 e slot 2
-        val realSim1 = detected.firstOrNull { it.slotDisplay == 1 }
-            ?: if (detected.size == 1 && detected[0].slotDisplay != 2) detected[0] else null
-
-        val realSim2 = detected.firstOrNull { it.slotDisplay == 2 }
-            ?: if (detected.size > 1 && detected[1] != realSim1) detected[1] else null
-
-        // Slot 1
-        val existing1 = simsExistentesDb[1]
-        val sim1 = if (realSim1 != null) {
-            val phone = if (realSim1.phoneNumber != "Não gravado no chip") {
-                realSim1.phoneNumber
+        return detected.map { real ->
+            val existing = simsExistentesDb[real.slotDisplay]
+            val phone = if (real.phoneNumber != "Não gravado no chip") {
+                real.phoneNumber
             } else {
-                existing1?.phoneNumber?.takeIf { it.isNotBlank() && it != "N/A" } ?: realSim1.phoneNumber
+                existing?.phoneNumber?.takeIf { it.isNotBlank() && it != "N/A" } ?: real.phoneNumber
             }
-            val isVoice = realSim1.isDefaultVoice
-            val remaining = existing1?.remainingSends ?: 10
-            val totalLimit = existing1?.totalLimit ?: 10
+            val remaining = existing?.remainingSends ?: 10
+            val totalLimit = existing?.totalLimit ?: 10
             val status = when {
                 remaining <= 0 -> "Cota Esgotada (0/$totalLimit)"
-                isVoice -> "Ativo para Chamadas e USSD"
-                else -> "Standby / Em espera"
+                real.isDefaultVoice -> "SIM Padrão para Chamadas"
+                else -> "Secundário / Standby"
             }
+
             SimCard(
-                slot = 1,
-                providerName = realSim1.carrierName,
+                slot = real.slotDisplay,
+                providerName = real.carrierName,
                 phoneNumber = phone,
                 status = status,
                 isInserted = true,
-                isActiveVoice = isVoice,
+                isActiveVoice = real.isDefaultVoice,
                 remainingSends = remaining,
                 totalLimit = totalLimit,
-                subscriptionId = realSim1.subscriptionId,
-                displayName = realSim1.displayName,
-                lastUpdated = now
-            )
-        } else {
-            SimCard(
-                slot = 1,
-                providerName = "Sem cartões ativos",
-                phoneNumber = "N/A",
-                status = if (detected.isEmpty()) "Sem cartões ativos" else "Slot 1 Vazio / Desocupado",
-                isInserted = false,
-                isActiveVoice = false,
-                remainingSends = 0,
-                totalLimit = 10,
-                subscriptionId = -1,
-                displayName = "SIM 1",
+                subscriptionId = real.subscriptionId,
+                displayName = "SIM ${real.slotDisplay}",
                 lastUpdated = now
             )
         }
-
-        // Slot 2
-        val existing2 = simsExistentesDb[2]
-        val sim2 = if (realSim2 != null) {
-            val phone = if (realSim2.phoneNumber != "Não gravado no chip") {
-                realSim2.phoneNumber
-            } else {
-                existing2?.phoneNumber?.takeIf { it.isNotBlank() && it != "N/A" } ?: realSim2.phoneNumber
-            }
-            val isVoice = realSim2.isDefaultVoice
-            val remaining = existing2?.remainingSends ?: 10
-            val totalLimit = existing2?.totalLimit ?: 10
-            val status = when {
-                remaining <= 0 -> "Cota Esgotada (0/$totalLimit)"
-                isVoice -> "Ativo para Chamadas e USSD"
-                else -> "Standby / Em espera"
-            }
-            SimCard(
-                slot = 2,
-                providerName = realSim2.carrierName,
-                phoneNumber = phone,
-                status = status,
-                isInserted = true,
-                isActiveVoice = isVoice,
-                remainingSends = remaining,
-                totalLimit = totalLimit,
-                subscriptionId = realSim2.subscriptionId,
-                displayName = realSim2.displayName,
-                lastUpdated = now
-            )
-        } else {
-            SimCard(
-                slot = 2,
-                providerName = "Sem cartões ativos",
-                phoneNumber = "N/A",
-                status = if (detected.isEmpty()) "Sem cartões ativos" else "Slot 2 Vazio / Desocupado",
-                isInserted = false,
-                isActiveVoice = false,
-                remainingSends = 0,
-                totalLimit = 10,
-                subscriptionId = -1,
-                displayName = "SIM 2",
-                lastUpdated = now
-            )
-        }
-
-        return listOf(sim1, sim2)
     }
 
     /**
-     * Abre a tela de gerenciamento de Cartões SIM e Chamadas do sistema Android
-     * para que o usuário confirme a troca do chip padrão para chamadas se desejado.
+     * Resolve o estado dos slots (mantido para compatibilidade com partes existentes do sistema)
      */
-    fun abrirConfiguracoesSim(context: Context) {
+    fun resolverEstadoSimsCompletos(
+        context: Context,
+        simsExistentesDb: Map<Int, SimCard> = emptyMap()
+    ): List<SimCard> {
+        return resolverSimsReaisPresentes(context, simsExistentesDb)
+    }
+
+    /**
+     * Aplica a troca real do SIM padrão de chamadas no telefone (Android OS)
+     * SEM abrir telas de configurações ou definições externas.
+     * Utiliza APIs de TelecomManager, SubscriptionManager e configurações de telefonia do sistema.
+     */
+    fun aplicarTrocaSimPadraoChamadasSistema(context: Context, targetSlot: Int, targetSubId: Int): Boolean {
+        var sucesso = false
+
+        // 1. TelecomManager: Define a conta telefônica de saída selecionada pelo usuário
+        try {
+            val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+            val targetHandle = obterPhoneAccountHandleParaSim(context, targetSlot, targetSubId)
+            if (telecomManager != null && targetHandle != null) {
+                try {
+                    val method = telecomManager.javaClass.getMethod(
+                        "setUserSelectedOutgoingPhoneAccount",
+                        PhoneAccountHandle::class.java
+                    )
+                    method.isAccessible = true
+                    method.invoke(telecomManager, targetHandle)
+                    sucesso = true
+                    Log.d("SimCardHelper", "TelecomManager: setUserSelectedOutgoingPhoneAccount aplicado para $targetHandle")
+                } catch (e: Exception) {
+                    Log.w("SimCardHelper", "TelecomManager setUserSelectedOutgoingPhoneAccount não acessível: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("SimCardHelper", "Erro ao acessar TelecomManager: ${e.message}")
+        }
+
+        // 2. SubscriptionManager: Define o SubId de voz padrão no sistema via reflexão
+        if (targetSubId > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+            try {
+                val subManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                if (subManager != null) {
+                    try {
+                        val methodVoice = subManager.javaClass.getMethod("setDefaultVoiceSubId", Int::class.javaPrimitiveType)
+                        methodVoice.isAccessible = true
+                        methodVoice.invoke(subManager, targetSubId)
+                        sucesso = true
+                        Log.d("SimCardHelper", "SubscriptionManager: setDefaultVoiceSubId($targetSubId) aplicado")
+                    } catch (_: Exception) {
+                        try {
+                            val methodVoiceStatic = SubscriptionManager::class.java.getMethod("setDefaultVoiceSubId", Int::class.javaPrimitiveType)
+                            methodVoiceStatic.isAccessible = true
+                            methodVoiceStatic.invoke(null, targetSubId)
+                            sucesso = true
+                        } catch (_: Exception) {}
+                    }
+
+                    // Sincroniza também dados e SMS para consistência operacional
+                    try {
+                        val methodData = subManager.javaClass.getMethod("setDefaultDataSubId", Int::class.javaPrimitiveType)
+                        methodData.isAccessible = true
+                        methodData.invoke(subManager, targetSubId)
+                    } catch (_: Exception) {}
+
+                    try {
+                        val methodSms = subManager.javaClass.getMethod("setDefaultSmsSubId", Int::class.javaPrimitiveType)
+                        methodSms.isAccessible = true
+                        methodSms.invoke(subManager, targetSubId)
+                    } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                Log.w("SimCardHelper", "SubscriptionManager alteração falhou: ${e.message}")
+            }
+        }
+
+        // 3. Provedor de Configurações Globais / do Sistema de Telefonia
+        if (targetSubId > 0) {
+            try {
+                Settings.Global.putInt(context.contentResolver, "multi_sim_voice_call", targetSubId)
+                sucesso = true
+            } catch (_: Exception) {}
+
+            try {
+                Settings.System.putInt(context.contentResolver, "multi_sim_voice_call", targetSubId)
+                sucesso = true
+            } catch (_: Exception) {}
+
+            try {
+                Settings.Global.putInt(context.contentResolver, "voice_call_sim_setting", targetSubId)
+                sucesso = true
+            } catch (_: Exception) {}
+
+            try {
+                Settings.Global.putInt(context.contentResolver, "multi_sim_voice_prompt", 0)
+            } catch (_: Exception) {}
+        }
+
+        return sucesso
+    }
+
+    /**
+     * Localiza o PhoneAccountHandle correspondente ao SIM slot ou SubscriptionId
+     * para que chamadas e comandos USSD sejam disparados diretamente pelo chip especificado.
+     */
+    fun obterPhoneAccountHandleParaSim(context: Context, simSlot: Int, subscriptionId: Int): PhoneAccountHandle? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+
+        try {
+            val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return null
+            val accounts: List<PhoneAccountHandle> = try {
+                telecomManager.callCapablePhoneAccounts ?: emptyList()
+            } catch (_: SecurityException) {
+                emptyList()
+            }
+
+            if (accounts.isEmpty()) return null
+
+            // 1. Tenta correspondência direta pelo Subscription ID contido no ID da PhoneAccount
+            if (subscriptionId > 0) {
+                val matchBySub = accounts.firstOrNull { handle ->
+                    val id = handle.id ?: ""
+                    id == subscriptionId.toString() || id.contains(subscriptionId.toString())
+                }
+                if (matchBySub != null) return matchBySub
+            }
+
+            // 2. Tenta por índice de slot (0 para SIM 1, 1 para SIM 2)
+            val slotIndex = (simSlot - 1).coerceAtLeast(0)
+            if (slotIndex in accounts.indices) {
+                return accounts[slotIndex]
+            }
+
+            return accounts.firstOrNull()
+        } catch (e: Exception) {
+            Log.w("SimCardHelper", "Erro ao obter PhoneAccountHandle: ${e.message}")
+            return null
+        }
+    }
+
+    /**
+     * Abre a tela oficial do sistema Android para alternância do SIM padrão de chamadas
+     * através de TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS ou configurações de rede/SIM.
+     */
+    fun abrirConfiguracoesAlternarSimSistema(context: Context): Boolean {
+        val telecomAction = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS
+        } else {
+            "android.telephony.action.CHANGE_PHONE_ACCOUNTS"
+        }
+
         val intents = listOf(
+            Intent(telecomAction),
+            Intent("android.telephony.action.CHANGE_PHONE_ACCOUNTS"),
             Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS),
+            Intent("android.settings.MANAGE_ALL_SIM_PROFILES_SETTINGS"),
+            Intent("android.settings.SIM_MANAGEMENT_SETTINGS"),
             Intent(Settings.ACTION_WIRELESS_SETTINGS),
-            Intent("android.settings.WIRELESS_SETTINGS"),
-            Intent("android.settings.NETWORK_OPERATOR_SETTINGS"),
             Intent(Settings.ACTION_SETTINGS)
         )
 
@@ -305,10 +389,19 @@ object SimCardHelper {
             try {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 context.startActivity(intent)
-                return
+                return true
             } catch (_: Exception) {
-                // Tenta próximo
+                // Tenta a próxima intenção suportada pelo fabricante
             }
         }
+        return false
+    }
+
+    /**
+     * Abre a tela de gerenciamento de Cartões SIM e Chamadas do sistema Android
+     * para que o usuário confirme a troca do chip padrão para chamadas se desejado.
+     */
+    fun abrirConfiguracoesSim(context: Context) {
+        abrirConfiguracoesAlternarSimSistema(context)
     }
 }
