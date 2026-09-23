@@ -2,9 +2,12 @@ package com.example.service
 
 import android.accessibilityservice.AccessibilityService
 import android.os.Bundle
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import com.example.network.ServidorManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,23 +30,22 @@ data class StepCapture(
 )
 
 /**
- * Serviço de Acessibilidade para automação e leitura de menus USSD interativos.
- * Captura o conteúdo de tela a cada etapa e envia as opções do fluxo *162#:
- *  - Passo 1: Captura menu após *162# e responde "8"
- *  - Passo 2: Captura submenu e responde "2"
- *  - Passo 3: Captura solicitação de megas e envia o volume desejado
- *  - Passo 4: Captura solicitação de número destinatário e envia o número Vodacom
- *  - Passo 5: Captura a resposta final da operadora e fecha o diálogo com sucesso.
+ * Serviço de Acessibilidade para automação precisa passo a passo do fluxo USSD *162#:
+ *  1. *162# -> Aguarda resposta do menu principal -> Seleciona opção 8 -> Envia
+ *  2. Aguarda resposta do submenu -> Seleciona opção 2 -> Envia
+ *  3. Aguarda tela de megas -> Insere quantidade de megas -> Envia
+ *  4. Aguarda tela de número -> Insere número do destinatário -> Envia
+ *  5. Aguarda popup de resposta final -> Lê exclusivamente o texto da mensagem com precisão -> Salva -> Clica OK para fechar
  */
 class UssdAccessibilityService : AccessibilityService() {
 
     enum class Step(val label: String) {
         IDLE("Inativo"),
-        WAITING_STEP_8("Aguardando Menu Principal (*162#)"),
-        WAITING_STEP_2("Aguardando Submenu (Opção 2)"),
-        WAITING_STEP_MEGAS("Aguardando Campo de Megas"),
-        WAITING_STEP_NUMERO("Aguardando Campo de Número"),
-        WAITING_FINAL_RESPONSE("Aguardando Resposta Final")
+        WAITING_STEP_8("1. Aguardando Menu Principal (*162#)"),
+        WAITING_STEP_2("2. Aguardando Submenu (Opção 2)"),
+        WAITING_STEP_MEGAS("3. Aguardando Campo de Megas"),
+        WAITING_STEP_NUMERO("4. Aguardando Campo de Número"),
+        WAITING_FINAL_RESPONSE("5. Aguardando Resposta Final")
     }
 
     interface OnStepCapturedListener {
@@ -51,6 +53,12 @@ class UssdAccessibilityService : AccessibilityService() {
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+
+    // Trava de sincronização estrita para evitar reentrâncias ou disparos prematuros
+    @Volatile
+    private var isProcessingStep = false
+
+    // Registra o texto manipulado na etapa anterior para detectar alteração real da tela
     private var lastHandledText: String = ""
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -62,37 +70,37 @@ class UssdAccessibilityService : AccessibilityService() {
                 eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             ) {
                 val rootNode = rootInActiveWindow ?: event.source ?: return
-                val capturedText = extractTextFromNode(rootNode)
-
-                if (capturedText.isBlank()) return
-
                 val currentStep = _currentActiveStep.value
 
-                // Se o texto na tela for idêntico ao já manipulado neste passo, ignora repetição
-                if (capturedText == lastHandledText && currentStep != Step.WAITING_FINAL_RESPONSE) {
-                    return
-                }
-
-                _lastCapturedScreenText.value = capturedText
-
-                // Modo passivo: se não estiver em automação de fluxo ativo, apenas registra diálogos USSD avulsos
+                // Se inativo, apenas registra diálogos soltos no modo passivo
                 if (currentStep == Step.IDLE) {
-                    if (isUssdDialog(rootNode, capturedText)) {
+                    val capturedText = extractTextFromNode(rootNode)
+                    if (capturedText.isNotBlank() && isUssdDialog(rootNode, capturedText)) {
+                        _lastCapturedScreenText.value = capturedText
                         ServidorManager.getInstance(applicationContext).registrarRespostaUssd(capturedText)
                     }
                     return
                 }
 
-                // Executa a transição da etapa atual e registra o conteúdo lido
+                // Se já estiver processando ativamente uma ação deste passo, aguarda
+                if (isProcessingStep) return
+
+                val capturedText = extractTextFromNode(rootNode)
+                if (capturedText.isBlank()) return
+
+                _lastCapturedScreenText.value = capturedText
+
+                // Executa a verificação e avanço da etapa correspondente
                 handleAutomatedStep(rootNode, capturedText, currentStep)
             }
         } catch (e: Exception) {
-            // Ignora silenciosamente
+            Log.e(TAG, "Erro no evento de acessibilidade: ${e.message}")
         }
     }
 
     /**
-     * Gerencia a leitura da tela atual e a injeção do próximo dado no fluxo *162#
+     * Gerencia a execução estrita e ordenada do fluxo passo a passo:
+     * *162# -> 8 -> 2 -> Megas -> Número -> Ler Resposta Final -> OK Fechar
      */
     private fun handleAutomatedStep(
         rootNode: AccessibilityNodeInfo,
@@ -103,104 +111,171 @@ class UssdAccessibilityService : AccessibilityService() {
         val sendButton = findSendButton(rootNode)
 
         when (currentStep) {
+            // =========================================================================
+            // ETAPA 1: *162# -> Esperar resposta -> Selecionar 8
+            // =========================================================================
             Step.WAITING_STEP_8 -> {
                 if (inputNode != null) {
+                    isProcessingStep = true
                     lastHandledText = capturedText
                     recordStepCapture(Step.WAITING_STEP_8, 1, capturedText, "8")
-                    _currentActiveStep.value = Step.WAITING_STEP_2
-                    _stepLogFlow.value = "Etapa 1/4 concluída: Resposta lida. Selecionando opção 8..."
+                    _stepLogFlow.value = "1/5: Menu *162# detectado. Aguardando estabilização e digitando 8..."
 
                     serviceScope.launch {
-                        delay(600) // Delay tático para estabilização visual da tela
-                        sendInputText(inputNode, "8", sendButton)
+                        delay(700) // Aguarda a janela USSD estabilizar completamente
+                        val currentRoot = rootInActiveWindow ?: rootNode
+                        val freshInput = findInputEditText(currentRoot) ?: inputNode
+                        val freshSend = findSendButton(currentRoot) ?: sendButton
+
+                        sendInputText(freshInput, "8", freshSend)
+                        _stepLogFlow.value = "1/5: Opção 8 enviada. Aguardando resposta do submenu..."
+                        delay(900) // Aguarda a rede começar a transição da tela
+                        _currentActiveStep.value = Step.WAITING_STEP_2
+                        isProcessingStep = false
                     }
                 }
             }
 
+            // =========================================================================
+            // ETAPA 2: Esperar resposta da opção 8 -> Selecionar 2
+            // =========================================================================
             Step.WAITING_STEP_2 -> {
+                // Certifica-se de que a tela mudou do menu principal anterior
+                if (capturedText == lastHandledText) return
+
                 if (inputNode != null) {
+                    isProcessingStep = true
                     lastHandledText = capturedText
                     recordStepCapture(Step.WAITING_STEP_2, 2, capturedText, "2")
-                    _currentActiveStep.value = Step.WAITING_STEP_MEGAS
-                    _stepLogFlow.value = "Etapa 2/4 concluída: Resposta lida. Selecionando opção 2..."
+                    _stepLogFlow.value = "2/5: Submenu recebido. Aguardando estabilização e digitando 2..."
 
                     serviceScope.launch {
-                        delay(600)
-                        sendInputText(inputNode, "2", sendButton)
+                        delay(700) // Aguarda resposta estabilizar
+                        val currentRoot = rootInActiveWindow ?: rootNode
+                        val freshInput = findInputEditText(currentRoot) ?: inputNode
+                        val freshSend = findSendButton(currentRoot) ?: sendButton
+
+                        sendInputText(freshInput, "2", freshSend)
+                        _stepLogFlow.value = "2/5: Opção 2 enviada. Aguardando campo de Megas..."
+                        delay(900)
+                        _currentActiveStep.value = Step.WAITING_STEP_MEGAS
+                        isProcessingStep = false
                     }
                 }
             }
 
+            // =========================================================================
+            // ETAPA 3: Esperar tela de megas -> Colocar Megas
+            // =========================================================================
             Step.WAITING_STEP_MEGAS -> {
+                // Certifica-se de que a tela mudou do submenu anterior
+                if (capturedText == lastHandledText) return
+
                 if (inputNode != null) {
                     val megas = targetMegas.value
+                    isProcessingStep = true
                     lastHandledText = capturedText
                     recordStepCapture(Step.WAITING_STEP_MEGAS, 3, capturedText, megas)
-                    _currentActiveStep.value = Step.WAITING_STEP_NUMERO
-                    _stepLogFlow.value = "Etapa 3/4 concluída: Solicitado Megas. Inserindo $megas MB..."
+                    _stepLogFlow.value = "3/5: Campo de Megas recebido. Inserindo $megas MB..."
 
                     serviceScope.launch {
-                        delay(600)
-                        sendInputText(inputNode, megas, sendButton)
+                        delay(700) // Aguarda resposta estabilizar
+                        val currentRoot = rootInActiveWindow ?: rootNode
+                        val freshInput = findInputEditText(currentRoot) ?: inputNode
+                        val freshSend = findSendButton(currentRoot) ?: sendButton
+
+                        sendInputText(freshInput, megas, freshSend)
+                        _stepLogFlow.value = "3/5: Megas ($megas) enviados. Aguardando campo do número destinatário..."
+                        delay(900)
+                        _currentActiveStep.value = Step.WAITING_STEP_NUMERO
+                        isProcessingStep = false
                     }
                 }
             }
 
+            // =========================================================================
+            // ETAPA 4: Esperar tela de número -> Colocar Número
+            // =========================================================================
             Step.WAITING_STEP_NUMERO -> {
+                // Certifica-se de que a tela mudou da tela de megas anterior
+                if (capturedText == lastHandledText) return
+
                 if (inputNode != null) {
                     val numero = targetNumero.value
+                    isProcessingStep = true
                     lastHandledText = capturedText
                     recordStepCapture(Step.WAITING_STEP_NUMERO, 4, capturedText, numero)
-                    _currentActiveStep.value = Step.WAITING_FINAL_RESPONSE
-                    _stepLogFlow.value = "Etapa 4/4 concluída: Solicitado Destinatário. Inserindo $numero..."
+                    _stepLogFlow.value = "4/5: Campo de Destinatário recebido. Inserindo $numero..."
 
                     serviceScope.launch {
-                        delay(600)
-                        sendInputText(inputNode, numero, sendButton)
+                        delay(700) // Aguarda resposta estabilizar
+                        val currentRoot = rootInActiveWindow ?: rootNode
+                        val freshInput = findInputEditText(currentRoot) ?: inputNode
+                        val freshSend = findSendButton(currentRoot) ?: sendButton
+
+                        sendInputText(freshInput, numero, freshSend)
+                        _stepLogFlow.value = "4/5: Número ($numero) enviado. Aguardando popup de resposta final..."
+                        delay(1000) // Aguarda o envio do número ser submetido
+                        _currentActiveStep.value = Step.WAITING_FINAL_RESPONSE
+                        isProcessingStep = false
                     }
                 }
             }
 
+            // =========================================================================
+            // ETAPA 5: Esperar, Ler a resposta final com precisão e depois OK Fechar
+            // =========================================================================
             Step.WAITING_FINAL_RESPONSE -> {
-                // No último popup (que vem imediatamente após a fase do número destinatário),
-                // extrai estritamente a mensagem emitida pela operadora:
-                // Pode não ter EditText (diálogo de informação final) ou pode ter botão OK/Fechar.
-                val pureResponse = extractPureOperatorResponse(rootNode).ifBlank { capturedText }
+                // Ignora se a tela ainda for idêntica ao prompt do número anterior
+                if (capturedText == lastHandledText) return
 
-                // Evita ler o próprio menu do passo anterior caso a tela ainda não tenha mudado
-                if (pureResponse.contains(targetNumero.value) && pureResponse.contains("Destinatario", ignoreCase = true)) {
-                    // A tela ainda é a etapa anterior de número; aguarda a transição para o último pop up
+                // Se ainda for um campo de edição com prompt de destinatário, aguarda a resposta real
+                val lower = capturedText.lowercase()
+                if (lower.contains("destinatario") || lower.contains("numero do") || lower.contains("número")) {
+                    if (inputNode != null) return
+                }
+
+                // Extrai com máxima precisão somente o texto do corpo da mensagem dentro do popup
+                val preciseText = extractPreciseDialogText(rootNode)
+                if (preciseText.isBlank() || preciseText.equals("ok", ignoreCase = true) || preciseText.length < 5) {
                     return
                 }
 
-                // Garante que o texto capturado seja válido e não seja apenas resíduo de botão
-                if (pureResponse.isBlank() || pureResponse.equals("ok", ignoreCase = true)) {
-                    return
-                }
-
+                isProcessingStep = true
                 lastHandledText = capturedText
-                recordStepCapture(Step.WAITING_FINAL_RESPONSE, 5, pureResponse, "[FIM DO FLUXO]")
-                _ultimaRespostaFinal.value = pureResponse
-                _stepLogFlow.value = "Resposta da operadora lida: $pureResponse"
-                _currentActiveStep.value = Step.IDLE
+                _stepLogFlow.value = "5/5: Popup final detectado. Aguardando estabilização para leitura precisa..."
 
-                // Registra a resposta certa capturada no último popup
-                ServidorManager.getInstance(applicationContext).registrarRespostaUssd(pureResponse)
-
-                // Clica no botão OK/Fechar do último pop up para dispensar a janela sem deixar resíduos
                 serviceScope.launch {
-                    delay(350)
-                    val dismissed = findAndClickDismissButton(rootNode)
+                    delay(800) // Espera para ler claramente e com total estabilidade visual
+                    val currentRoot = rootInActiveWindow ?: rootNode
+                    val finalResponseText = extractPreciseDialogText(currentRoot).ifBlank { preciseText }
+
+                    // Grava o texto capturado com precisão
+                    recordStepCapture(Step.WAITING_FINAL_RESPONSE, 5, finalResponseText, "[FIM]")
+                    _ultimaRespostaFinal.value = finalResponseText
+                    _stepLogFlow.value = "Resposta final lida com precisão: \"$finalResponseText\""
+
+                    // Registra no ServidorManager
+                    ServidorManager.getInstance(applicationContext).registrarRespostaUssd(finalResponseText)
+
+                    // Espera clara após ler a resposta antes de acionar o botão OK/Fechar
+                    delay(1200)
+
+                    _stepLogFlow.value = "Fechando diálogo final com OK..."
+                    val dismissed = findAndClickDismissButton(rootInActiveWindow ?: currentRoot)
                     if (!dismissed) {
-                        // Tentativa de fechar clicando no nó raiz ou botão ativo
-                        delay(250)
-                        findAndClickDismissButton(rootInActiveWindow ?: rootNode)
+                        delay(400)
+                        findAndClickDismissButton(rootInActiveWindow ?: currentRoot)
                     }
+
+                    _stepLogFlow.value = "Fluxo USSD concluído com sucesso."
+                    _currentActiveStep.value = Step.IDLE
+                    isProcessingStep = false
                 }
             }
 
             Step.IDLE -> {
-                // Aguardando novas ações
+                // Inativo
             }
         }
     }
@@ -220,7 +295,6 @@ class UssdAccessibilityService : AccessibilityService() {
         currentList.add(capture)
         _stepCapturesHistory.value = currentList
 
-        // Notifica listeners registrados
         listeners.forEach { listener ->
             try {
                 listener.onStepCaptured(capture)
@@ -232,7 +306,6 @@ class UssdAccessibilityService : AccessibilityService() {
 
     /**
      * Injeta texto no campo de formulário USSD e aciona o botão de envio
-     * Utiliza estritamente APIs públicas de acessibilidade, sem invocar métodos bloqueados
      */
     private fun sendInputText(
         inputNode: AccessibilityNodeInfo,
@@ -240,7 +313,6 @@ class UssdAccessibilityService : AccessibilityService() {
         sendButton: AccessibilityNodeInfo?
     ) {
         try {
-            // Garante que o nó receba foco antes da injeção
             if (!inputNode.isFocused) {
                 inputNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
             }
@@ -251,12 +323,10 @@ class UssdAccessibilityService : AccessibilityService() {
             val textSet = inputNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
 
             if (!textSet) {
-                // Tentativa secundária com foco
                 inputNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
                 inputNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
             }
 
-            // Aciona o botão de Envio se disponível; caso contrário aciona clique no input
             if (sendButton != null) {
                 val clicked = clickNodeOrParent(sendButton)
                 if (!clicked) {
@@ -266,7 +336,7 @@ class UssdAccessibilityService : AccessibilityService() {
                 inputNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             }
         } catch (e: Exception) {
-            // Silencioso
+            Log.e(TAG, "Erro ao enviar texto: ${e.message}")
         }
     }
 
@@ -285,8 +355,9 @@ class UssdAccessibilityService : AccessibilityService() {
      * Localiza o campo EditText interativo na árvore de acessibilidade
      */
     private fun findInputEditText(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (node.className?.toString() == EditText::class.java.name ||
-            node.className?.toString()?.contains("EditText", ignoreCase = true) == true ||
+        val className = node.className?.toString() ?: ""
+        if (className == EditText::class.java.name ||
+            className.contains("EditText", ignoreCase = true) ||
             node.isEditable
         ) {
             return node
@@ -304,8 +375,13 @@ class UssdAccessibilityService : AccessibilityService() {
      * Localiza o botão Enviar/Send/OK/Responder na árvore de acessibilidade
      */
     private fun findSendButton(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val sendLabels = listOf("enviar", "send", "ok", "responder", "reply", "submeter", "continuar")
+        val sendLabels = listOf("enviar", "send", "submeter", "responder", "reply", "continuar", "ok")
         val nodeText = node.text?.toString()?.trim()?.lowercase() ?: ""
+        val viewId = node.viewIdResourceName?.lowercase() ?: ""
+
+        if (viewId.endsWith("button1") || viewId.contains("button_positive") || viewId.contains("send")) {
+            return node
+        }
 
         if (node.isClickable && sendLabels.any { nodeText == it || nodeText.contains(it) }) {
             return node
@@ -320,11 +396,16 @@ class UssdAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Localiza e clica no botão de descarte/fechamento do diálogo da operadora
+     * Localiza e clica no botão OK/Fechar do último popup
      */
     private fun findAndClickDismissButton(node: AccessibilityNodeInfo): Boolean {
-        val dismissLabels = listOf("ok", "fechar", "close", "entendido", "dismiss", "cancelar", "aceitar", "concluido")
+        val dismissLabels = listOf("ok", "fechar", "close", "entendido", "dismiss", "cancelar", "aceitar", "concluido", "concluído")
         val nodeText = node.text?.toString()?.trim()?.lowercase() ?: ""
+        val viewId = node.viewIdResourceName?.lowercase() ?: ""
+
+        if (viewId.endsWith("button1") || viewId.contains("button_positive")) {
+            if (clickNodeOrParent(node)) return true
+        }
 
         if (dismissLabels.any { nodeText == it }) {
             if (clickNodeOrParent(node)) return true
@@ -335,6 +416,62 @@ class UssdAccessibilityService : AccessibilityService() {
             if (findAndClickDismissButton(child)) return true
         }
         return false
+    }
+
+    /**
+     * Extrai com máxima precisão somente o texto do corpo da mensagem dentro do popup final,
+     * ignorando botões ("OK", "Fechar", "Cancelar") e campos vazios.
+     */
+    private fun extractPreciseDialogText(rootNode: AccessibilityNodeInfo): String {
+        // 1. Tenta encontrar diretamente o TextView padrão de mensagem do diálogo Android (android:id/message)
+        val messageNodes = rootNode.findAccessibilityNodeInfosByViewId("android:id/message")
+        if (!messageNodes.isNullOrEmpty()) {
+            val msg = messageNodes[0].text?.toString()?.trim()
+            if (!msg.isNullOrBlank()) {
+                return msg
+            }
+        }
+
+        // 2. Coleta textos de TextViews excluindo botões e cabeçalhos genéricos
+        val collected = mutableListOf<String>()
+        val excludedButtons = setOf(
+            "ok", "fechar", "close", "cancelar", "cancel", "dismiss",
+            "entendido", "enviar", "send", "resposta", "responder",
+            "concluido", "concluído", "aceitar"
+        )
+
+        fun traverse(node: AccessibilityNodeInfo) {
+            val className = node.className?.toString() ?: ""
+            val rawText = node.text?.toString()?.trim() ?: ""
+            val isButton = node.isClickable ||
+                    className.contains("Button", ignoreCase = true) ||
+                    excludedButtons.contains(rawText.lowercase())
+
+            // Ignora caixas de texto editáveis
+            if (className.contains("EditText", ignoreCase = true)) {
+                return
+            }
+
+            if (rawText.isNotBlank() && !isButton) {
+                if (!excludedButtons.contains(rawText.lowercase())) {
+                    if (!collected.contains(rawText)) {
+                        collected.add(rawText)
+                    }
+                }
+            }
+
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                traverse(child)
+            }
+        }
+
+        traverse(rootNode)
+
+        // Se coletou textos válidos, une e retorna
+        val filtered = collected.filter { it.length > 1 && !it.equals("USSD", ignoreCase = true) }
+        val full = filtered.joinToString(" ").trim()
+        return full.ifBlank { extractTextFromNode(rootNode) }
     }
 
     /**
@@ -351,32 +488,6 @@ class UssdAccessibilityService : AccessibilityService() {
                 lower.contains("162") ||
                 lower.contains("erro") ||
                 findInputEditText(node) != null
-    }
-
-    /**
-     * Extrai puramente a resposta textual da operadora, filtrando botões do diálogo (OK, Cancelar, etc.)
-     */
-    private fun extractPureOperatorResponse(rootNode: AccessibilityNodeInfo): String {
-        val texts = mutableListOf<String>()
-        val buttonLabels = setOf("ok", "fechar", "close", "cancelar", "dismiss", "entendido", "enviar", "send", "resposta", "responder", "concluido", "aceitar")
-
-        fun collectTexts(node: AccessibilityNodeInfo) {
-            val text = node.text?.toString()?.trim()
-            val isButton = node.isClickable || buttonLabels.contains(text?.lowercase())
-            if (!text.isNullOrBlank() && !isButton) {
-                if (!buttonLabels.contains(text.lowercase())) {
-                    texts.add(text)
-                }
-            }
-            for (i in 0 until node.childCount) {
-                val child = node.getChild(i) ?: continue
-                collectTexts(child)
-            }
-        }
-
-        collectTexts(rootNode)
-        val full = texts.joinToString(" ").trim()
-        return full.ifBlank { extractTextFromNode(rootNode) }
     }
 
     /**
@@ -399,6 +510,7 @@ class UssdAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {
         _currentActiveStep.value = Step.IDLE
+        isProcessingStep = false
     }
 
     override fun onServiceConnected() {
@@ -443,9 +555,11 @@ class UssdAccessibilityService : AccessibilityService() {
         private val listeners = CopyOnWriteArrayList<OnStepCapturedListener>()
 
         /**
-         * Fecha qualquer popup, diálogo ou menu ativo antes de iniciar a transferência
+         * Fecha qualquer popup ou menu que tenha ficado aberto de execuções anteriores,
+         * somente se o serviço estiver inativo (IDLE).
          */
         fun fecharPopupsAtivos(): Boolean {
+            if (_currentActiveStep.value != Step.IDLE) return false
             val instance = activeInstance ?: return false
             val rootNode = instance.rootInActiveWindow ?: return false
             return instance.findAndClickDismissButton(rootNode)
@@ -461,7 +575,6 @@ class UssdAccessibilityService : AccessibilityService() {
 
         /**
          * Inicializa o fluxo de automação passo a passo do código *162#
-         * Fecha qualquer popup/menu ativo na tela antes de executar
          */
         fun iniciarFluxoPreciso(megas: String, numero: String) {
             fecharPopupsAtivos()
@@ -470,7 +583,7 @@ class UssdAccessibilityService : AccessibilityService() {
             _stepCapturesHistory.value = emptyList()
             _ultimaRespostaFinal.value = ""
             _currentActiveStep.value = Step.WAITING_STEP_8
-            _stepLogFlow.value = "Disparando *162# - Aguardando menu da operadora..."
+            _stepLogFlow.value = "Disparando *162# - Aguardando menu principal..."
         }
 
         /**

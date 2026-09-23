@@ -65,6 +65,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -78,6 +80,10 @@ import com.example.ui.theme.Bl4ckBackground
 import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckError
+import com.example.ui.theme.Bl4ckGlassBorder
+import com.example.ui.theme.Bl4ckGlassBorderSubtle
+import com.example.ui.theme.Bl4ckGlassSurface
+import com.example.ui.theme.Bl4ckGlassSurfaceLight
 import com.example.ui.theme.Bl4ckOnPrimary
 import com.example.ui.theme.Bl4ckPrimary
 import com.example.ui.theme.Bl4ckSecondary
@@ -228,10 +234,12 @@ fun ControleSimsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("card_sim_empty_state"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
                     border = CardDefaults.outlinedCardBorder().copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorderSubtle),
+                        brush = Brush.verticalGradient(
+                            listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
+                        ),
                         width = 1.dp
                     )
                 ) {
@@ -415,11 +423,14 @@ private fun ActiveSimHeaderCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("card_active_sim_indicator"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (hasAnySim) Bl4ckPrimary.copy(alpha = 0.4f) else Bl4ckBorderSubtle
+            brush = Brush.verticalGradient(
+                listOf(
+                    if (hasAnySim) Bl4ckPrimary.copy(alpha = 0.4f) else Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
             ),
             width = 1.dp
         )
@@ -646,12 +657,17 @@ private fun SimSlotButton(
     Box(
         modifier = modifier
             .testTag("btn_sim_slot_$slot")
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isActive) Color(0xFF132219) else Bl4ckSurfaceVariant)
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (isActive) Color(0xFF132219) else Bl4ckGlassSurfaceLight)
             .border(
-                width = if (isActive) 1.5.dp else 1.dp,
-                color = if (isActive) Bl4ckPrimary else Bl4ckBorderSubtle,
-                shape = RoundedCornerShape(14.dp)
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    listOf(
+                        if (isActive) Bl4ckPrimary else Bl4ckGlassBorder,
+                        if (isActive) Bl4ckPrimary.copy(alpha = 0.5f) else Bl4ckGlassBorderSubtle
+                    )
+                ),
+                shape = RoundedCornerShape(18.dp)
             )
             .clickable { onClick() }
             .padding(14.dp)
@@ -868,11 +884,14 @@ private fun ServerConnectionCard(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("card_server_connection"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (isConnected) Bl4ckPrimary.copy(alpha = 0.4f) else Bl4ckBorderSubtle
+            brush = Brush.verticalGradient(
+                listOf(
+                    if (isConnected) Bl4ckPrimary.copy(alpha = 0.4f) else Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
             ),
             width = 1.dp
         )
@@ -973,10 +992,12 @@ private fun BotCommandsSimulatorCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
+            brush = Brush.verticalGradient(
+                listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
+            ),
             width = 1.dp
         )
     ) {
@@ -1049,11 +1070,14 @@ private fun RealSimCardDetailCard(
             .fillMaxWidth()
             .testTag("card_sim_slot_${simCard.slot}")
             .clickable(enabled = !isActiveVoice) { onDefinirComoPadrao() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (isActiveVoice) Bl4ckPrimary.copy(alpha = 0.85f) else Bl4ckBorderSubtle
+            brush = Brush.verticalGradient(
+                listOf(
+                    if (isActiveVoice) Bl4ckPrimary.copy(alpha = 0.85f) else Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
             ),
             width = if (isActiveVoice) 1.5.dp else 1.dp
         )

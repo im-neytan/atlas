@@ -3,15 +3,16 @@ package com.example.ui.screens
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,35 +26,34 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SimCard
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +72,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.HistoricoItem
@@ -81,10 +83,20 @@ import com.example.ui.theme.Bl4ckBackground
 import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckError
+import com.example.ui.theme.Bl4ckGlassBorder
+import com.example.ui.theme.Bl4ckGlassBorderSubtle
+import com.example.ui.theme.Bl4ckGlassHighlight
+import com.example.ui.theme.Bl4ckGlassSurface
+import com.example.ui.theme.Bl4ckGlassSurfaceLight
 import com.example.ui.theme.Bl4ckOnPrimary
+import com.example.ui.theme.Bl4ckPillGreen
+import com.example.ui.theme.Bl4ckPillGreenBg
+import com.example.ui.theme.Bl4ckPillGreenBorder
 import com.example.ui.theme.Bl4ckPrimary
-import com.example.ui.theme.Bl4ckPrimaryGlow
 import com.example.ui.theme.Bl4ckSecondary
+import com.example.ui.theme.Bl4ckSphereInnerOrange
+import com.example.ui.theme.Bl4ckSphereInnerOrangeDark
+import com.example.ui.theme.Bl4ckSphereOuterGlow
 import com.example.ui.theme.Bl4ckSurface
 import com.example.ui.theme.Bl4ckSurfaceElevated
 import com.example.ui.theme.Bl4ckSurfaceVariant
@@ -118,26 +130,17 @@ fun OverviewDashboardScreen(
 ) {
     val context = LocalContext.current
 
-    var isAccessibilityActive by remember { mutableStateOf(false) }
     var isCallGranted by remember { mutableStateOf(false) }
-    var isOverlayGranted by remember { mutableStateOf(false) }
-
-    fun refreshServicesState() {
-        isAccessibilityActive = SystemServicesHelper.isAccessibilityServiceEnabled(context)
-        isCallGranted = SystemServicesHelper.isCallPermissionGranted(context)
-        isOverlayGranted = SystemServicesHelper.canDrawOverlays(context)
-    }
 
     val callPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         isCallGranted = granted
-        refreshServicesState()
     }
 
     LaunchedEffect(Unit) {
-        refreshServicesState()
-        if (!SystemServicesHelper.isCallPermissionGranted(context)) {
+        isCallGranted = SystemServicesHelper.isCallPermissionGranted(context)
+        if (!isCallGranted) {
             callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
         }
     }
@@ -162,158 +165,414 @@ fun OverviewDashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Bl4ckBackground),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // 1. Hero Card: Fintech Mission Control & Live Status
+        // 1. Hero Section: Ambient Liquid Glass Sphere & Mission Control (Inspirado na imagem de referência)
         item {
-            ExecutiveWelcomeHeader(
-                connectionStatus = connectionStatus,
+            HeroLiquidGlassSphere(
+                aguardandoCount = aguardandoCount,
                 isEngineRunning = isEngineRunning,
                 currentCountdown = currentCountdown,
-                onAlternarMotor = handleAlternarMotor
+                onToggleEngine = handleAlternarMotor
             )
         }
 
-        // 2. Operações & Balanço: Grid 2x2 de Cartões de Métricas
+        // 2. Linha de Ações Rápidas (Chips Pílula Translúcidos)
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                MetricSummaryCard(
-                    title = "FILA ATIVA",
-                    value = "$aguardandoCount",
-                    subValue = if (emProcessamentoCount > 0) "1 em processo" else "Pendentes",
-                    accentColor = if (aguardandoCount > 0) Bl4ckSecondary else Bl4ckTextMuted,
-                    badge = if (aguardandoCount > 0) "EM FILA" else "VAZIO",
-                    modifier = Modifier.weight(1f),
-                    onClick = onVerFilaClick
-                )
-
-                MetricSummaryCard(
-                    title = "CONCLUÍDOS",
-                    value = "$concluidosCount",
-                    subValue = if (falhasCount > 0) "$falhasCount falhas" else "100% sucesso",
-                    accentColor = Bl4ckPrimary,
-                    badge = "HISTÓRICO",
-                    modifier = Modifier.weight(1f),
-                    onClick = onVerHistoricoClick
-                )
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                val hasSims = sim1Info.isInserted || sim2Info.isInserted
-                MetricSummaryCard(
-                    title = "CHIP DE CHAMADA",
-                    value = if (!hasSims) "Sem cartões" else "SIM $activeSim",
-                    subValue = if (!hasSims) "Nenhum chip inserido" else "${activeSimInfo.carrierName} • ${activeSimInfo.remainingSends}/${activeSimInfo.totalLimit}",
-                    accentColor = if (!hasSims) Bl4ckTextMuted else if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckPrimary,
-                    badge = activeSimInfo.carrierName.take(8),
-                    modifier = Modifier.weight(1f),
-                    onClick = onAlternarSim
-                )
-
-                MetricSummaryCard(
-                    title = "MOTOR USSD",
-                    value = if (isEngineRunning) "ATIVO" else "PAUSADO",
-                    subValue = if (isEngineRunning && currentCountdown > 0) "${currentCountdown}s próx." else "Ciclo 4-8s",
-                    accentColor = if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning,
-                    badge = if (isEngineRunning) "ONLINE" else "PAUSA",
-                    modifier = Modifier.weight(1f),
-                    onClick = handleAlternarMotor
-                )
-            }
-        }
-
-        // 3. Central de Controle Operacional
-        item {
-            OperationalControlCard(
+            QuickActionsChipsRow(
+                aguardandoCount = aguardandoCount,
+                activeSim = activeSim,
                 isEngineRunning = isEngineRunning,
-                currentCountdown = currentCountdown,
-                hasPending = aguardandoCount > 0,
-                onAlternarMotor = handleAlternarMotor,
                 onAgendarClick = onAgendarClick,
+                onVerFilaClick = onVerFilaClick,
+                onAlternarSim = onAlternarSim,
                 onProcessarProximo = handleProcessarProximo
             )
         }
 
-        // 4. Cartão de Gestão do SIM Ativo com Barra de Quota
+        // 3. Grande Card Glassmorphic: "Saldo Disponível & Cota de Envios" (Inspirado na referência IMG_8485.png)
         item {
-            ActiveSimQuotaCard(
+            LargeQuotaGlassCard(
                 activeSim = activeSim,
                 activeSimInfo = activeSimInfo,
                 onAlternarSim = onAlternarSim
             )
         }
 
-        // 5. Última Execução e Resposta da Operadora (se houver)
+        // 4. Card de Controle Operacional do Motor USSD
+        item {
+            EngineControlGlassCard(
+                isEngineRunning = isEngineRunning,
+                currentCountdown = currentCountdown,
+                aguardandoCount = aguardandoCount,
+                connectionStatus = connectionStatus,
+                onToggleEngine = handleAlternarMotor,
+                onVerFilaClick = onVerFilaClick,
+                onAgendarClick = onAgendarClick
+            )
+        }
+
+        // 5. Grid 2x2 Glassmorphic de Métricas
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    GlassMetricCard(
+                        title = "FILA ATIVA",
+                        value = "$aguardandoCount",
+                        subValue = if (emProcessamentoCount > 0) "1 em processo" else "Pendentes",
+                        badge = if (aguardandoCount > 0) "EM FILA" else "VAZIO",
+                        accentColor = if (aguardandoCount > 0) Bl4ckSecondary else Bl4ckTextMuted,
+                        icon = Icons.Default.FormatListBulleted,
+                        modifier = Modifier.weight(1f),
+                        onClick = onVerFilaClick
+                    )
+
+                    GlassMetricCard(
+                        title = "CONCLUÍDOS",
+                        value = "$concluidosCount",
+                        subValue = if (falhasCount > 0) "$falhasCount falhas" else "100% sucesso",
+                        badge = "HISTÓRICO",
+                        accentColor = Bl4ckPrimary,
+                        icon = Icons.Default.History,
+                        modifier = Modifier.weight(1f),
+                        onClick = onVerHistoricoClick
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    GlassMetricCard(
+                        title = "SIM 1 CHIP",
+                        value = "${sim1Info.remainingSends}",
+                        subValue = "${sim1Info.carrierName} (lim ${sim1Info.totalLimit})",
+                        badge = if (activeSim == 1) "ATIVO" else "SIM 1",
+                        accentColor = if (activeSim == 1) Bl4ckPrimary else Bl4ckTextMuted,
+                        icon = Icons.Default.SimCard,
+                        modifier = Modifier.weight(1f),
+                        onClick = onAlternarSim
+                    )
+
+                    GlassMetricCard(
+                        title = "SIM 2 CHIP",
+                        value = "${sim2Info.remainingSends}",
+                        subValue = "${sim2Info.carrierName} (lim ${sim2Info.totalLimit})",
+                        badge = if (activeSim == 2) "ATIVO" else "SIM 2",
+                        accentColor = if (activeSim == 2) Bl4ckPrimary else Bl4ckTextMuted,
+                        icon = Icons.Default.SimCard,
+                        modifier = Modifier.weight(1f),
+                        onClick = onAlternarSim
+                    )
+                }
+            }
+        }
+
+        // 6. Última Execução e Resposta da Operadora (se houver)
         if (ultimoHistorico != null) {
             item {
-                LatestExecutionCard(
+                LatestExecutionGlassCard(
                     item = ultimoHistorico,
-                    onVerTodos = onVerHistoricoClick
+                    onVerHistoricoClick = onVerHistoricoClick
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 1. Hero Section: Ambient Liquid Glass Sphere & Mission Control
+ * Inspirado visualmente na imagem de referência IMG_8485.png.
+ */
+@Composable
+private fun HeroLiquidGlassSphere(
+    aguardandoCount: Int,
+    isEngineRunning: Boolean,
+    currentCountdown: Int,
+    onToggleEngine: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "sphere_glow")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.65f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Esfera 3D com Ambient Glow Laranja/Âmbar
+        Box(
+            modifier = Modifier
+                .size(190.dp)
+                .clickable { onToggleEngine() },
+            contentAlignment = Alignment.Center
+        ) {
+            // Brilho Atmosférico Radial Traseiro
+            Box(
+                modifier = Modifier
+                    .size(190.dp)
+                    .alpha(pulseAlpha)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Bl4ckSphereOuterGlow,
+                                Color(0x18FF6B00),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
+
+            // Corpo da Esfera de Vidro Translúcido com Efeito 3D
+            Box(
+                modifier = Modifier
+                    .size(155.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF281912),
+                                Color(0xFF19110D),
+                                Color(0xFF090706)
+                            )
+                        )
+                    )
+                    .border(
+                        1.5.dp,
+                        Brush.sweepGradient(
+                            listOf(
+                                Color(0x66FFFFFF),
+                                Color(0x10FFFFFF),
+                                Color(0x80F97316),
+                                Color(0x10FFFFFF),
+                                Color(0x66FFFFFF)
+                            )
+                        ),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                // Reflexo de Luz Superior Especular (Curva do Vidro)
+                Box(
+                    modifier = Modifier
+                        .size(width = 110.dp, height = 55.dp)
+                        .align(Alignment.TopCenter)
+                        .padding(top = 10.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x38FFFFFF),
+                                    Color(0x05FFFFFF),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                // Cápsula Laranja Incandescente Central (Estilo [ 0 - ] da imagem de referência)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Bl4ckSphereInnerOrange,
+                                    Bl4ckSphereInnerOrangeDark
+                                )
+                            )
+                        )
+                        .border(1.dp, Color(0x80FFB37A), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 22.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val displayText = if (isEngineRunning && currentCountdown > 0) {
+                        "${currentCountdown}s -"
+                    } else if (aguardandoCount > 0) {
+                        "$aguardandoCount -"
+                    } else {
+                        "0 -"
+                    }
+
+                    Text(
+                        text = displayText,
+                        color = Color.White,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-1).sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Pílula de Status "● Serviço Iniciado" com Efeito Glow
+        Surface(
+            color = if (isEngineRunning) Bl4ckPillGreenBg else Color(0x26F59E0B),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(
+                1.dp,
+                if (isEngineRunning) Bl4ckPillGreenBorder else Color(0x59F59E0B)
+            ),
+            modifier = Modifier.clickable { onToggleEngine() }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .alpha(pulseAlpha)
+                        .clip(CircleShape)
+                        .background(if (isEngineRunning) Bl4ckPillGreen else Bl4ckWarning)
+                )
+
+                Text(
+                    text = if (isEngineRunning) "● Serviço Iniciado" else "● Serviço Pausado",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isEngineRunning) Bl4ckPillGreen else Bl4ckWarning,
+                    letterSpacing = 0.2.sp
                 )
             }
         }
 
-        // 6. Atalhos Rápidos para Abas
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onVerFilaClick,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Bl4ckSurface,
-                        contentColor = Bl4ckTextPrimary
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorder),
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Ver Fila Completa", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                            Text("$totalFila pedidos ativos", fontSize = 11.sp, color = Bl4ckTextSecondary)
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Bl4ckTextMuted, modifier = Modifier.size(18.dp))
-                    }
-                }
+        Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedButton(
-                    onClick = onAlternarSim,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Bl4ckSurface,
-                        contentColor = Bl4ckTextPrimary
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckBorder),
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 14.dp)
+        // Frase Marcante de Impacto (Estilo "Relaxa e confia!...")
+        Text(
+            text = if (isEngineRunning) {
+                "Relaxa e confia! O BL4CK SYSTEM tá no modo automático \uD83D\uDE97"
+            } else {
+                "Modo Standby. Toque para iniciar o piloto automático ⚡"
+            },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Bl4ckTextPrimary,
+            textAlign = TextAlign.Center,
+            fontSize = 17.sp,
+            lineHeight = 23.sp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    }
+}
+
+/**
+ * 2. Linha de Chips Rápidos de Ação (Agendar, Lista de espera, etc.)
+ */
+@Composable
+private fun QuickActionsChipsRow(
+    aguardandoCount: Int,
+    activeSim: Int,
+    isEngineRunning: Boolean,
+    onAgendarClick: () -> Unit,
+    onVerFilaClick: () -> Unit,
+    onAlternarSim: () -> Unit,
+    onProcessarProximo: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        QuickActionChip(
+            icon = Icons.Default.Add,
+            label = "Agendar transf...",
+            onClick = onAgendarClick
+        )
+
+        QuickActionChip(
+            icon = Icons.Default.FormatListBulleted,
+            label = "Lista de espera ($aguardandoCount)",
+            badge = if (aguardandoCount > 0) "$aguardandoCount" else null,
+            onClick = onVerFilaClick
+        )
+
+        QuickActionChip(
+            icon = Icons.Default.SimCard,
+            label = "SIM $activeSim Ativo",
+            onClick = onAlternarSim
+        )
+
+        if (!isEngineRunning && aguardandoCount > 0) {
+            QuickActionChip(
+                icon = Icons.Default.FlashOn,
+                label = "Disparar 1",
+                accentColor = Bl4ckSecondary,
+                onClick = onProcessarProximo
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionChip(
+    icon: ImageVector,
+    label: String,
+    badge: String? = null,
+    accentColor: Color = Bl4ckTextPrimary,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = Bl4ckGlassSurfaceLight,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, Bl4ckGlassBorder),
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(15.dp)
+            )
+
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Bl4ckTextPrimary
+            )
+
+            if (badge != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Bl4ckPrimary)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Alternar SIM", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                            Text("Agora: SIM $activeSim", fontSize = 11.sp, color = Bl4ckPrimary)
-                        }
-                        Icon(Icons.Default.SimCard, contentDescription = null, tint = Bl4ckPrimary, modifier = Modifier.size(18.dp))
-                    }
+                    Text(
+                        text = badge,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF041E15)
+                    )
                 }
             }
         }
@@ -321,34 +580,29 @@ fun OverviewDashboardScreen(
 }
 
 /**
- * Header Executivo Fintech / Mission Control:
- * Mostra status em tempo real, status do WebSocket e controle rápido.
+ * 3. Grande Card Glassmorphic: "Saldo Disponível & Cota de Envios"
+ * Inspirado diretamente no grande card inferior da imagem de referência IMG_8485.png.
  */
 @Composable
-private fun ExecutiveWelcomeHeader(
-    connectionStatus: ConnectionStatus,
-    isEngineRunning: Boolean,
-    currentCountdown: Int,
-    onAlternarMotor: () -> Unit
+private fun LargeQuotaGlassCard(
+    activeSim: Int,
+    activeSimInfo: SimInfo,
+    onAlternarSim: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse_radar")
-    val radarPulse by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "radarPulse"
-    )
+    val totalLimit = if (activeSimInfo.totalLimit > 0) activeSimInfo.totalLimit else 100
+    val usedSends = (totalLimit - activeSimInfo.remainingSends).coerceAtLeast(0)
+    val progress = (usedSends.toFloat() / totalLimit.toFloat()).coerceIn(0f, 1f)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = Brush.verticalGradient(
-                colors = listOf(Bl4ckBorder, Bl4ckBorderSubtle)
+                listOf(
+                    Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
             ),
             width = 1.dp
         )
@@ -356,81 +610,44 @@ private fun ExecutiveWelcomeHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Bl4ckSurfaceVariant.copy(alpha = 0.5f), Bl4ckSurface)
-                    )
-                )
-                .padding(18.dp)
+                .padding(20.dp)
         ) {
+            // Linha do Cabeçalho: "Saldo disponível" + Tag do Chip
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Status de Operação do Motor
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.12f) else Bl4ckSurfaceElevated)
-                        .border(
-                            1.dp,
-                            if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.3f) else Bl4ckBorder,
-                            RoundedCornerShape(20.dp)
-                        )
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                Text(
+                    text = "Saldo disponível",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Bl4ckTextPrimary,
+                    letterSpacing = (-0.2).sp
+                )
+
+                Surface(
+                    color = Bl4ckGlassSurfaceLight,
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, Bl4ckGlassBorderSubtle),
+                    modifier = Modifier.clickable { onAlternarSim() }
                 ) {
                     Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .alpha(if (isEngineRunning) radarPulse else 0.5f)
-                                .clip(CircleShape)
-                                .background(if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning)
-                        )
                         Text(
-                            text = if (isEngineRunning) "MOTOR ATIVO" else "MOTOR PAUSADO",
-                            fontSize = 10.sp,
+                            text = "${activeSimInfo.carrierName} SIM $activeSim",
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp,
-                            color = if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning
+                            color = Bl4ckSecondary
                         )
-                    }
-                }
-
-                // Status da Conexão WebSocket
-                val (connColor, connLabel) = when (connectionStatus) {
-                    ConnectionStatus.CONNECTED -> Bl4ckPrimary to "WEBSOCKET ONLINE"
-                    ConnectionStatus.CONNECTING -> Bl4ckWarning to "CONECTANDO..."
-                    ConnectionStatus.DISCONNECTED -> Bl4ckTextMuted to "LOCAL STANDBY"
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(connColor.copy(alpha = 0.1f))
-                        .border(1.dp, connColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(connColor)
-                        )
-                        Text(
-                            text = connLabel,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
-                            color = connColor
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = Bl4ckTextMuted,
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                 }
@@ -438,26 +655,236 @@ private fun ExecutiveWelcomeHeader(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Destaque de Tipografia Forte: Quota Restante em Destaque
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "${activeSimInfo.remainingSends}",
+                            fontSize = 38.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckTextPrimary,
+                            letterSpacing = (-1).sp
+                        )
+                        Text(
+                            text = " / ${activeSimInfo.totalLimit} envios",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Bl4ckTextSecondary,
+                            modifier = Modifier.padding(bottom = 5.dp, start = 6.dp)
+                        )
+                    }
+
+                    Text(
+                        text = if (activeSimInfo.isLimitReached) {
+                            "Limite diário atingido! Alterne para o outro chip."
+                        } else {
+                            "Cota diária com proteção automática anti-bloqueio"
+                        },
+                        fontSize = 12.sp,
+                        color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckTextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Botão de Ação Circular Minimalista
+                Surface(
+                    shape = CircleShape,
+                    color = Bl4ckGlassSurfaceLight,
+                    border = BorderStroke(1.dp, Bl4ckGlassBorder),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .clickable { onAlternarSim() }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = "Alternar SIM",
+                            tint = Bl4ckPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Barra de Progresso Fina e Sofisticada
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckPrimary,
+                trackColor = Color(0x331E2A3C)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${activeSimInfo.remainingSends} envios restantes hoje",
+                    fontSize = 11.sp,
+                    color = Bl4ckTextSecondary
+                )
+                Text(
+                    text = "${(progress * 100).toInt()}% utilizado",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Bl4ckTextMuted
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 4. Card de Controle do Motor USSD e Automação
+ */
+@Composable
+private fun EngineControlGlassCard(
+    isEngineRunning: Boolean,
+    currentCountdown: Int,
+    aguardandoCount: Int,
+    connectionStatus: ConnectionStatus,
+    onToggleEngine: () -> Unit,
+    onVerFilaClick: () -> Unit,
+    onAgendarClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = Brush.verticalGradient(
+                listOf(
+                    if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.3f) else Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
+            ),
+            width = 1.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
-                        text = "CENTRAL DE CONTROLE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Bl4ckTextMuted,
+                        text = "Piloto Automático USSD",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.4.sp
+                        color = Bl4ckTextPrimary
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Relaxa, Bl4ck System a operar.",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Bl4ckTextPrimary,
+                        text = if (isEngineRunning) {
+                            if (currentCountdown > 0) "Próximo envio em ${currentCountdown}s" else "Processando fila em segundo plano"
+                        } else {
+                            "Ciclo inteligente 4-8s pausado"
+                        },
+                        fontSize = 12.sp,
+                        color = if (isEngineRunning) Bl4ckPrimary else Bl4ckTextMuted
+                    )
+                }
+
+                Surface(
+                    color = when (connectionStatus) {
+                        ConnectionStatus.CONNECTED -> Color(0x2610B981)
+                        ConnectionStatus.CONNECTING -> Color(0x26F59E0B)
+                        ConnectionStatus.DISCONNECTED -> Color(0x26EF4444)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        when (connectionStatus) {
+                            ConnectionStatus.CONNECTED -> Color(0x5910B981)
+                            ConnectionStatus.CONNECTING -> Color(0x59F59E0B)
+                            ConnectionStatus.DISCONNECTED -> Color(0x59EF4444)
+                        }
+                    )
+                ) {
+                    Text(
+                        text = when (connectionStatus) {
+                            ConnectionStatus.CONNECTED -> "ONLINE"
+                            ConnectionStatus.CONNECTING -> "SYNC..."
+                            ConnectionStatus.DISCONNECTED -> "OFFLINE"
+                        },
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = when (connectionStatus) {
+                            ConnectionStatus.CONNECTED -> Bl4ckPrimary
+                            ConnectionStatus.CONNECTING -> Bl4ckWarning
+                            ConnectionStatus.DISCONNECTED -> Bl4ckError
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onToggleEngine,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isEngineRunning) Color(0xFF24151B) else Bl4ckPrimary,
+                        contentColor = if (isEngineRunning) Bl4ckError else Bl4ckOnPrimary
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    border = if (isEngineRunning) BorderStroke(1.dp, Bl4ckError.copy(alpha = 0.5f)) else null,
+                    modifier = Modifier
+                        .weight(1.3f)
+                        .height(44.dp)
+                        .testTag("btn_toggle_engine")
+                ) {
+                    Icon(
+                        imageVector = if (isEngineRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Text(
+                        text = if (isEngineRunning) "Pausar Motor" else "Iniciar Motor",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.3).sp
+                        modifier = Modifier.padding(start = 6.dp)
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onVerFilaClick,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Bl4ckGlassSurfaceLight,
+                        contentColor = Bl4ckTextPrimary
+                    ),
+                    border = BorderStroke(1.dp, Bl4ckGlassBorder),
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .height(44.dp)
+                ) {
+                    Text(
+                        text = "Ver Fila ($aguardandoCount)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -466,26 +893,29 @@ private fun ExecutiveWelcomeHeader(
 }
 
 /**
- * Card de Métrica Individual com visual Fintech
+ * 5. Card Individual de Métrica Glassmorphic
  */
 @Composable
-private fun MetricSummaryCard(
+private fun GlassMetricCard(
     title: String,
     value: String,
     subValue: String,
+    badge: String,
     accentColor: Color,
-    badge: String? = null,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
             .clickable(enabled = onClick != null) { onClick?.invoke() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
+            brush = Brush.verticalGradient(
+                listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
+            ),
             width = 1.dp
         )
     ) {
@@ -501,70 +931,64 @@ private fun MetricSummaryCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Bl4ckTextMuted,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
+                    color = Bl4ckTextMuted,
                     letterSpacing = 0.6.sp
                 )
 
-                if (badge != null) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(accentColor.copy(alpha = 0.12f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = badge,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = accentColor
-                        )
-                    }
+                Surface(
+                    color = accentColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = badge,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = accentColor,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = value,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
                 color = accentColor,
                 letterSpacing = (-0.5).sp
             )
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = subValue,
                 fontSize = 11.sp,
                 color = Bl4ckTextSecondary,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
 /**
- * Painel Operacional: Motor USSD & Agendamento
+ * 6. Card de Última Execução e Resposta da Operadora
  */
 @Composable
-private fun OperationalControlCard(
-    isEngineRunning: Boolean,
-    currentCountdown: Int,
-    hasPending: Boolean,
-    onAlternarMotor: () -> Unit,
-    onAgendarClick: () -> Unit,
-    onProcessarProximo: () -> Unit
+private fun LatestExecutionGlassCard(
+    item: HistoricoItem,
+    onVerHistoricoClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (isEngineRunning) Bl4ckPrimary.copy(alpha = 0.35f) else Bl4ckBorder
+            brush = Brush.verticalGradient(
+                listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
             ),
             width = 1.dp
         )
@@ -572,248 +996,7 @@ private fun OperationalControlCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Ações Operacionais Rápidas",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Bl4ckTextPrimary
-                    )
-                    Text(
-                        text = if (isEngineRunning) {
-                            if (currentCountdown > 0) "Próximo envio em ${currentCountdown}s (automático)" else "Processando fila em segundo plano"
-                        } else {
-                            "Motor em pausa. Intervalo configurado: 4 a 8s"
-                        },
-                        fontSize = 12.sp,
-                        color = if (isEngineRunning) Bl4ckPrimary else Bl4ckTextSecondary
-                    )
-                }
-
-                if (isEngineRunning) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bl4ckPrimary.copy(alpha = 0.12f))
-                            .border(1.dp, Bl4ckPrimary.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "AUTO 4-8s",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Bl4ckPrimary
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = onAlternarMotor,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isEngineRunning) Bl4ckSurfaceElevated else Bl4ckPrimary,
-                        contentColor = if (isEngineRunning) Bl4ckError else Bl4ckOnPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1.3f).testTag("btn_toggle_engine")
-                ) {
-                    Icon(
-                        imageVector = if (isEngineRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = if (isEngineRunning) "Pausar Motor" else "Iniciar Motor",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 6.dp)
-                    )
-                }
-
-                Button(
-                    onClick = onAgendarClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Bl4ckSurfaceVariant,
-                        contentColor = Bl4ckTextPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1.3f).testTag("btn_new_transfer")
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = Bl4ckPrimary)
-                    Text(
-                        text = "Nova Transferência",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-
-                if (!isEngineRunning && hasPending) {
-                    OutlinedButton(
-                        onClick = onProcessarProximo,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckSecondary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckSecondary.copy(alpha = 0.4f)),
-                        modifier = Modifier.weight(0.9f)
-                    ) {
-                        Text("Disparar 1", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Card dedicado de Quota e Status do SIM ativo
- */
-@Composable
-private fun ActiveSimQuotaCard(
-    activeSim: Int,
-    activeSimInfo: SimInfo,
-    onAlternarSim: () -> Unit
-) {
-    val totalLimit = if (activeSimInfo.totalLimit > 0) activeSimInfo.totalLimit else 100
-    val usedSends = (totalLimit - activeSimInfo.remainingSends).coerceAtLeast(0)
-    val progress = (usedSends.toFloat() / totalLimit.toFloat()).coerceIn(0f, 1f)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
-            width = 1.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bl4ckSurfaceVariant)
-                            .border(1.dp, Bl4ckBorder, RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.SimCard,
-                            contentDescription = null,
-                            tint = Bl4ckPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "SIM $activeSim • ${activeSimInfo.carrierName}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Bl4ckTextPrimary
-                        )
-                        Text(
-                            text = "Chip selecionado para chamadas USSD",
-                            fontSize = 11.sp,
-                            color = Bl4ckTextSecondary
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = onAlternarSim,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Bl4ckSurfaceElevated,
-                        contentColor = Bl4ckPrimary
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("Trocar SIM", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Barra de Progresso da Quota do Dia
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Quota Diária de Envios",
-                    fontSize = 11.sp,
-                    color = Bl4ckTextMuted,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "${activeSimInfo.remainingSends} restantes de $totalLimit",
-                    fontSize = 11.sp,
-                    color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckTextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = if (activeSimInfo.isLimitReached) Bl4ckError else Bl4ckPrimary,
-                trackColor = Bl4ckSurfaceVariant
-            )
-        }
-    }
-}
-
-/**
- * Card de Última Execução e Resposta da Operadora
- */
-@Composable
-private fun LatestExecutionCard(
-    item: HistoricoItem,
-    onVerTodos: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
-            width = 1.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .padding(18.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -821,8 +1004,8 @@ private fun LatestExecutionCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Última Operação Concluída",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "Última Resposta Registrada",
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Bl4ckTextPrimary
                 )
@@ -834,7 +1017,7 @@ private fun LatestExecutionCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -844,14 +1027,14 @@ private fun LatestExecutionCard(
                 Column {
                     Text(
                         text = item.numeroDestino,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Bl4ckTextPrimary,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = "${item.megas} MB • SIM ${item.simSlot}",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = Bl4ckTextSecondary
                     )
                 }
@@ -864,14 +1047,15 @@ private fun LatestExecutionCard(
                     .replace(Regex("(?i)\\b(ok|fechar|close|cancelar|send|enviar|dismiss|entendido)\\b"), "")
                     .replace(Regex("\\s+"), " ").trim()
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF0A0F17))
-                        .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(10.dp))
-                        .padding(10.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF090D15))
+                        .border(1.dp, Bl4ckGlassBorderSubtle, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
                 ) {
                     Column {
                         Text(
@@ -884,13 +1068,38 @@ private fun LatestExecutionCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = limpo.ifBlank { item.ussdResposta },
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             color = Bl4ckSecondary,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 16.sp
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StatusBadge(status: String) {
+    val (bgColor, textColor, label) = when (status) {
+        "CONCLUIDO" -> Triple(Color(0x2610B981), Bl4ckPrimary, "SUCESSO")
+        "FALHA" -> Triple(Color(0x26EF4444), Bl4ckError, "FALHA")
+        "PROCESSANDO" -> Triple(Color(0x2638BDF8), Bl4ckSecondary, "ENVIANDO")
+        else -> Triple(Color(0x26F59E0B), Bl4ckWarning, status)
+    }
+
+    Surface(
+        color = bgColor,
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, textColor.copy(alpha = 0.3f))
+    ) {
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = textColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
     }
 }

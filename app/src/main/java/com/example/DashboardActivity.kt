@@ -1,9 +1,11 @@
 package com.example
 
+import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -11,6 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +21,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,25 +34,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.SimCard
-import androidx.compose.material.icons.filled.SpaceDashboard
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.SimCard
-import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,8 +57,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,22 +76,21 @@ import com.example.ui.screens.HistoricoScreen
 import com.example.ui.screens.OverviewDashboardScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.theme.Bl4ckBackground
-import com.example.ui.theme.Bl4ckBorder
-import com.example.ui.theme.Bl4ckBorderSubtle
+import com.example.ui.theme.Bl4ckDockActiveIcon
+import com.example.ui.theme.Bl4ckDockActivePill
+import com.example.ui.theme.Bl4ckDockBackground
+import com.example.ui.theme.Bl4ckDockBorder
+import com.example.ui.theme.Bl4ckDockInactiveIcon
+import com.example.ui.theme.Bl4ckError
+import com.example.ui.theme.Bl4ckGlassBorder
+import com.example.ui.theme.Bl4ckGlassSurfaceLight
 import com.example.ui.theme.Bl4ckPrimary
-import com.example.ui.theme.Bl4ckSecondary
-import com.example.ui.theme.Bl4ckSurface
-import com.example.ui.theme.Bl4ckSurfaceVariant
 import com.example.ui.theme.Bl4ckTextMuted
-import com.example.ui.theme.Bl4ckWarning
 import com.example.ui.theme.Bl4ckTextPrimary
 import com.example.ui.theme.Bl4ckTextSecondary
+import com.example.ui.theme.Bl4ckWarning
 import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
-
-import android.Manifest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
 
 class DashboardActivity : ComponentActivity() {
 
@@ -161,7 +160,6 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     val simCards by viewModel.simCards.collectAsStateWithLifecycle()
     val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
-    val lastLogMessage by viewModel.lastLogMessage.collectAsStateWithLifecycle()
 
     val isScheduleModalOpen by viewModel.isScheduleModalOpen.collectAsStateWithLifecycle()
     val isDefinicoesModalOpen by viewModel.isDefinicoesModalOpen.collectAsStateWithLifecycle()
@@ -170,9 +168,9 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
 
     val navItems = listOf(
         NavigationTabItem(
-            title = "Dashboard",
-            selectedIcon = Icons.Filled.SpaceDashboard,
-            unselectedIcon = Icons.Outlined.SpaceDashboard,
+            title = "Início",
+            selectedIcon = Icons.Filled.Home,
+            unselectedIcon = Icons.Outlined.Home,
             badgeCount = null
         ),
         NavigationTabItem(
@@ -198,152 +196,197 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     Scaffold(
         containerColor = Bl4ckBackground,
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.Black)
-                                    .border(1.dp, Bl4ckBorder, RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_app_logo),
-                                    contentDescription = "Logo Oficial",
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(horizontalAlignment = Alignment.Start) {
-                                Text(
-                                    text = "BL4CK SYSTEM",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
-                                    letterSpacing = 1.4.sp,
-                                    color = Bl4ckTextPrimary
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning)
+            // Header Moderno 2026 inspirado na referência visual IMG_8485.png
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Logo com Anel Orbital e Brilho Futurista
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0C1018))
+                            .border(
+                                1.5.dp,
+                                Brush.sweepGradient(
+                                    listOf(
+                                        Color(0xFF38BDF8),
+                                        Color(0x3310B981),
+                                        Color(0xFF818CF8),
+                                        Color(0xFF38BDF8)
                                     )
-                                    Text(
-                                        text = if (isEngineRunning) "OPERACIONAL" else "STANDBY",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.8.sp,
-                                        color = if (isEngineRunning) Bl4ckPrimary else Bl4ckWarning
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = { viewModel.openDefinicoesModal() },
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Bl4ckSurfaceVariant)
-                                .border(1.dp, Bl4ckBorder, RoundedCornerShape(10.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Definições",
-                                tint = Bl4ckTextPrimary,
-                                modifier = Modifier.size(18.dp)
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_app_logo),
+                            contentDescription = "Logo Oficial",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = "Bem-vindo,",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Bl4ckTextSecondary,
+                            letterSpacing = 0.2.sp
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "BL4CK SYSTEM",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 17.sp,
+                                color = Bl4ckTextPrimary,
+                                letterSpacing = (-0.3).sp
+                            )
+                            Text(
+                                text = " \uD83D\uDC4B",
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(start = 2.dp)
                             )
                         }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Bl4ckBackground
+                    }
+                }
+
+                // Ícone de Notificações / Definições com Indicador de Status
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Bl4ckGlassSurfaceLight)
+                        .border(1.dp, Bl4ckGlassBorder, CircleShape)
+                        .clickable { viewModel.openDefinicoesModal() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Definições e Status",
+                        tint = Bl4ckTextPrimary,
+                        modifier = Modifier.size(20.dp)
                     )
-                )
-                HorizontalDivider(
-                    color = Bl4ckBorderSubtle,
-                    thickness = 1.dp
-                )
+
+                    // Ponto indicador de alerta/conexão
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .align(Alignment.TopEnd)
+                            .padding(top = 4.dp, end = 4.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when (connectionStatus) {
+                                    ConnectionStatus.CONNECTED -> Bl4ckPrimary
+                                    ConnectionStatus.CONNECTING -> Bl4ckWarning
+                                    ConnectionStatus.DISCONNECTED -> Bl4ckError
+                                }
+                            )
+                    )
+                }
             }
         },
         bottomBar = {
-            Column {
-                HorizontalDivider(
-                    color = Bl4ckBorderSubtle,
-                    thickness = 1.dp
-                )
-                NavigationBar(
-                    containerColor = Bl4ckSurface,
-                    tonalElevation = 0.dp
+            // Floating Dock translúcido estilo 2026 inspirado na referência visual
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    color = Bl4ckDockBackground,
+                    shape = RoundedCornerShape(34.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckDockBorder),
+                    shadowElevation = 18.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    navItems.forEachIndexed { index, item ->
-                        val isSelected = pagerState.currentPage == index
-                        val currentIcon = if (isSelected) item.selectedIcon else item.unselectedIcon
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                            icon = {
-                                if (item.badgeCount != null) {
-                                    BadgedBox(
-                                        badge = {
-                                            Badge(
-                                                containerColor = Bl4ckPrimary,
-                                                contentColor = Color(0xFF041E15)
-                                            ) {
-                                                Text(
-                                                    text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString(),
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        navItems.forEachIndexed { index, item ->
+                            val isSelected = pagerState.currentPage == index
+                            if (isSelected) {
+                                // Item Ativo: Cápsula branca arredondada com ícone escuro
+                                Box(
+                                    modifier = Modifier
+                                        .height(44.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(Bl4ckDockActivePill)
+                                        .clickable {
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(index)
                                             }
                                         }
-                                    ) {
-                                        Icon(
-                                            imageVector = currentIcon,
-                                            contentDescription = item.title,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                } else {
+                                        .padding(horizontal = 20.dp)
+                                        .testTag("nav_tab_$index"),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Icon(
-                                        imageVector = currentIcon,
+                                        imageVector = item.selectedIcon,
                                         contentDescription = item.title,
+                                        tint = Bl4ckDockActiveIcon,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
-                            },
-                            label = {
-                                Text(
-                                    text = item.title,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    letterSpacing = 0.2.sp
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Bl4ckPrimary,
-                                selectedTextColor = Bl4ckPrimary,
-                                indicatorColor = Bl4ckPrimary.copy(alpha = 0.14f),
-                                unselectedIconColor = Bl4ckTextMuted,
-                                unselectedTextColor = Bl4ckTextMuted
-                            ),
-                            modifier = Modifier.testTag("nav_tab_$index")
-                        )
+                            } else {
+                                // Item Inativo: Ícone minimalista com área de toque ampla
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(index)
+                                            }
+                                        }
+                                        .testTag("nav_tab_$index"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (item.badgeCount != null) {
+                                        BadgedBox(
+                                            badge = {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(7.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Bl4ckPrimary)
+                                                )
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = item.unselectedIcon,
+                                                contentDescription = item.title,
+                                                tint = Bl4ckDockInactiveIcon,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Icon(
+                                            imageVector = item.unselectedIcon,
+                                            contentDescription = item.title,
+                                            tint = Bl4ckDockInactiveIcon,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -443,7 +486,8 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
 
 private data class NavigationTabItem(
     val title: String,
-    val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    val unselectedIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
     val badgeCount: Int?
 )
+

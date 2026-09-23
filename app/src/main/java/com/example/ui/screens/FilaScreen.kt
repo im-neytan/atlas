@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -36,15 +36,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.PedidoFila
@@ -53,6 +56,10 @@ import com.example.ui.theme.Bl4ckBackground
 import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckError
+import com.example.ui.theme.Bl4ckGlassBorder
+import com.example.ui.theme.Bl4ckGlassBorderSubtle
+import com.example.ui.theme.Bl4ckGlassSurface
+import com.example.ui.theme.Bl4ckGlassSurfaceLight
 import com.example.ui.theme.Bl4ckOnPrimary
 import com.example.ui.theme.Bl4ckPrimary
 import com.example.ui.theme.Bl4ckSecondary
@@ -96,9 +103,9 @@ fun FilaScreen(
                 },
                 containerColor = Bl4ckPrimary,
                 contentColor = Bl4ckOnPrimary,
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier
-                    .padding(bottom = 8.dp)
+                    .padding(bottom = 12.dp)
                     .testTag("fab_agendar_transferencia")
             )
         }
@@ -107,8 +114,8 @@ fun FilaScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Contadores no Topo
             item {
@@ -119,7 +126,7 @@ fun FilaScreen(
                 )
             }
 
-            // Barra de Controle da Fila (Motor & Ações Rápidas)
+            // Barra de Controle da Fila (Motor & Ações Rápidas) em Card Glassmorphic
             item {
                 QueueControlBar(
                     isRunning = isEngineRunning,
@@ -142,18 +149,25 @@ fun FilaScreen(
                 ) {
                     Text(
                         text = "FILA DE TRANSMISSÃO (${pedidos.size})",
-                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 12.sp,
                         color = Bl4ckTextMuted,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp
                     )
 
-                    Text(
-                        text = "Vodacom *162#",
-                        fontSize = 11.sp,
-                        color = Bl4ckSecondary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Surface(
+                        color = Bl4ckGlassSurfaceLight,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Bl4ckGlassBorderSubtle)
+                    ) {
+                        Text(
+                            text = "Vodacom *162#",
+                            fontSize = 11.sp,
+                            color = Bl4ckSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
                 }
             }
 
@@ -185,28 +199,36 @@ private fun QueueControlBar(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
+            brush = Brush.verticalGradient(
+                listOf(
+                    if (isRunning) Bl4ckPrimary.copy(alpha = 0.35f) else Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
+            ),
             width = 1.dp
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
                 onClick = onToggle,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRunning) Bl4ckSurfaceElevated else Bl4ckPrimary,
+                    containerColor = if (isRunning) Color(0xFF24151B) else Bl4ckPrimary,
                     contentColor = if (isRunning) Bl4ckError else Bl4ckOnPrimary
                 ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.weight(1.4f)
+                shape = RoundedCornerShape(14.dp),
+                border = if (isRunning) BorderStroke(1.dp, Bl4ckError.copy(alpha = 0.5f)) else null,
+                modifier = Modifier
+                    .weight(1.4f)
+                    .height(44.dp)
             ) {
                 Icon(
                     imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -228,10 +250,15 @@ private fun QueueControlBar(
             if (!isRunning && hasPending) {
                 OutlinedButton(
                     onClick = onProcessSingle,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Bl4ckSecondary),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Bl4ckSecondary.copy(alpha = 0.35f)),
-                    modifier = Modifier.weight(1f)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Bl4ckGlassSurfaceLight,
+                        contentColor = Bl4ckSecondary
+                    ),
+                    border = BorderStroke(1.dp, Bl4ckSecondary.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
                 ) {
                     Text("Disparar 1", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -240,10 +267,10 @@ private fun QueueControlBar(
             IconButton(
                 onClick = onClearQueue,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Bl4ckSurfaceVariant)
-                    .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(12.dp))
-                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Bl4ckGlassSurfaceLight)
+                    .border(1.dp, Bl4ckGlassBorder, RoundedCornerShape(14.dp))
+                    .size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.DeleteSweep,
@@ -273,11 +300,14 @@ fun PedidoFilaCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("card_pedido_${pedido.id}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(
-                if (isProcessing) Bl4ckSecondary.copy(alpha = 0.5f) else Bl4ckBorder
+            brush = Brush.verticalGradient(
+                listOf(
+                    if (isProcessing) Bl4ckSecondary.copy(alpha = 0.6f) else Bl4ckGlassBorder,
+                    Bl4ckGlassBorderSubtle
+                )
             ),
             width = 1.dp
         )
@@ -285,7 +315,7 @@ fun PedidoFilaCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -304,18 +334,17 @@ fun PedidoFilaCard(
                         color = Bl4ckSecondary
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Bl4ckSurfaceVariant)
-                            .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    Surface(
+                        color = Bl4ckGlassSurfaceLight,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Bl4ckGlassBorderSubtle)
                     ) {
                         Text(
                             text = "SIM ${pedido.simSlot} • Vodacom",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Bl4ckTextSecondary
+                            color = Bl4ckTextSecondary,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
                 }
@@ -323,7 +352,7 @@ fun PedidoFilaCard(
                 StatusBadge(status = pedido.status)
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -349,27 +378,26 @@ fun PedidoFilaCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Bl4ckPrimary.copy(alpha = 0.12f))
-                            .border(1.dp, Bl4ckPrimary.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    Surface(
+                        color = Bl4ckPrimary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Bl4ckPrimary.copy(alpha = 0.3f))
                     ) {
                         Text(
                             text = "${pedido.megas} MB",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Bl4ckPrimary
+                            color = Bl4ckPrimary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
 
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
-                            .background(Bl4ckSurfaceVariant)
+                            .background(Bl4ckGlassSurfaceLight)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -381,15 +409,15 @@ fun PedidoFilaCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF090E17))
-                    .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF090D15))
+                    .border(1.dp, Bl4ckGlassBorderSubtle, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -406,7 +434,7 @@ fun PedidoFilaCard(
 
                     if (isProcessing) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(13.dp),
                             color = Bl4ckSecondary,
                             strokeWidth = 2.dp
                         )
@@ -418,123 +446,74 @@ fun PedidoFilaCard(
 }
 
 @Composable
-fun StatusBadge(status: String) {
-    val (bgColor, textColor, label) = when (status) {
-        "AGUARDANDO" -> Triple(
-            Bl4ckWarning.copy(alpha = 0.12f),
-            Bl4ckWarning,
-            "AGUARDANDO"
+private fun EmptyFilaView(onAgendarClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = Brush.verticalGradient(
+                listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
+            ),
+            width = 1.dp
         )
-        "EM PROCESSAMENTO" -> Triple(
-            Bl4ckSecondary.copy(alpha = 0.12f),
-            Bl4ckSecondary,
-            "PROCESSANDO"
-        )
-        "CONCLUIDO" -> Triple(
-            Bl4ckPrimary.copy(alpha = 0.12f),
-            Bl4ckPrimary,
-            "CONCLUÍDO"
-        )
-        "ANALISE" -> Triple(
-            Color(0xFFF59E0B).copy(alpha = 0.12f),
-            Color(0xFFF59E0B),
-            "ANÁLISE"
-        )
-        else -> Triple(
-            Bl4ckError.copy(alpha = 0.12f),
-            Bl4ckError,
-            "FALHA"
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bgColor)
-            .border(1.dp, textColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(5.dp)
+                    .size(58.dp)
                     .clip(CircleShape)
-                    .background(textColor)
-            )
+                    .background(Bl4ckGlassSurfaceLight)
+                    .border(1.dp, Bl4ckGlassBorder, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Inbox,
+                    contentDescription = null,
+                    tint = Bl4ckPrimary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = label,
-                color = textColor,
-                fontSize = 9.sp,
+                text = "Fila de Transmissão Vazia",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
+                color = Bl4ckTextPrimary
             )
-        }
-    }
-}
 
-@Composable
-private fun EmptyFilaView(onAgendarClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Bl4ckSurface)
-            .border(1.dp, Bl4ckBorder, RoundedCornerShape(18.dp))
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(54.dp)
-                .clip(CircleShape)
-                .background(Bl4ckSurfaceVariant)
-                .border(1.dp, Bl4ckBorder, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Inbox,
-                contentDescription = null,
-                tint = Bl4ckPrimary,
-                modifier = Modifier.size(26.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        Text(
-            text = "Fila de Transmissão Vazia",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Bl4ckTextPrimary
-        )
-
-        Text(
-            text = "Nenhum pedido pendente para envio. Os novos agendamentos locais ou ordens remotas do painel web aparecerão aqui em tempo real.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Bl4ckTextSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp, bottom = 18.dp)
-        )
-
-        Button(
-            onClick = onAgendarClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Bl4ckPrimary,
-                contentColor = Bl4ckOnPrimary
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
             Text(
-                text = "Agendar Transferência",
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(start = 6.dp)
+                text = "Nenhum pedido pendente para envio. Os novos agendamentos locais ou ordens remotas do painel web aparecerão aqui em tempo real.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Bl4ckTextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp, bottom = 20.dp)
             )
+
+            Button(
+                onClick = onAgendarClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Bl4ckPrimary,
+                    contentColor = Bl4ckOnPrimary
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Text(
+                    text = "Agendar Transferência",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
         }
     }
 }

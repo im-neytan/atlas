@@ -301,20 +301,21 @@ class ServidorManager private constructor(private val context: Context) {
 
     /**
      * Limpa o texto da resposta da operadora para conter unicamente
-     * a resposta da operadora, eliminando artefatos, múltiplos passos e botões de interface.
-     * No histórico e relatórios a resposta nunca deve ter mais de 70 caracteres (corta o resto).
+     * a resposta da operadora, eliminando artefatos e botões de interface.
      */
     fun limparRespostaOperadora(textoBruto: String): String {
         var limpo = textoBruto.trim()
         if (limpo.contains("Etapa") || limpo.contains("Step")) {
             limpo = limpo.substringAfterLast(":").trim()
         }
-        val buttonRegex = Regex("(?i)\\b(ok|fechar|close|cancelar|send|enviar|dismiss|entendido)\\b")
+        if (limpo.startsWith("USSD", ignoreCase = true)) {
+            limpo = limpo.substring(4).trim()
+        }
+        val buttonRegex = Regex("(?i)^\\s*(ok|fechar|close|cancelar|dismiss)\\s*|\\s*(ok|fechar|close|cancelar|dismiss)\\s*$")
         limpo = limpo.replace(buttonRegex, "").trim()
         limpo = limpo.replace(Regex("\\s+"), " ").trim()
-        // No histórico a parte da resposta da operadora nunca deve ter mais de 70 caracteres
-        if (limpo.length > 70) {
-            limpo = limpo.take(70).trim()
+        if (limpo.length > 150) {
+            limpo = limpo.take(150).trim()
         }
         return limpo
     }
@@ -398,9 +399,9 @@ class ServidorManager private constructor(private val context: Context) {
             _sim2Info.value = _sim2Info.value.copy(remainingSends = (_sim2Info.value.remainingSends - 1).coerceAtLeast(0))
         }
 
-        // Aguarda a progressão dos passos interativos e a captura da resposta final (ou timeout de 20s)
+        // Aguarda a progressão dos passos interativos e a captura da resposta final (ou timeout de 50s)
         var segundosAguardando = 0
-        val maxEspera = 20
+        val maxEspera = 50
         while (UssdAccessibilityService.currentActiveStep.value != UssdAccessibilityService.Step.IDLE && segundosAguardando < maxEspera) {
             delay(1000)
             segundosAguardando++

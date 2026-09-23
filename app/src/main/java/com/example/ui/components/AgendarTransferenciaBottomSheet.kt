@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Bl4ckBackground
 import com.example.ui.theme.Bl4ckBorder
+import com.example.ui.theme.Bl4ckGlassSurface
 import com.example.ui.theme.Bl4ckOnPrimary
 import com.example.ui.theme.Bl4ckPrimary
 import com.example.ui.theme.Bl4ckSecondary
@@ -77,9 +78,9 @@ fun AgendarTransferenciaBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Bl4ckSurface,
-        scrimColor = Color.Black.copy(alpha = 0.7f),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        containerColor = Bl4ckGlassSurface,
+        scrimColor = Color.Black.copy(alpha = 0.75f),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier

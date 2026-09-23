@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.ui.theme.Bl4ckBorderSubtle
+import com.example.ui.theme.Bl4ckGlassSurface
 import com.example.ui.theme.Bl4ckPrimary
 import com.example.ui.theme.Bl4ckSecondary
 import com.example.ui.theme.Bl4ckSurface
@@ -144,7 +145,8 @@ fun DefinicoesBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = Bl4ckSurface,
+        containerColor = Bl4ckGlassSurface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = null
     ) {
         Column(

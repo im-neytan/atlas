@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,22 +38,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.HistoricoItem
 import com.example.ui.theme.Bl4ckBackground
-import com.example.ui.theme.Bl4ckBorder
 import com.example.ui.theme.Bl4ckBorderSubtle
 import com.example.ui.theme.Bl4ckError
+import com.example.ui.theme.Bl4ckGlassBorder
+import com.example.ui.theme.Bl4ckGlassBorderSubtle
+import com.example.ui.theme.Bl4ckGlassSurface
+import com.example.ui.theme.Bl4ckGlassSurfaceLight
 import com.example.ui.theme.Bl4ckPrimary
 import com.example.ui.theme.Bl4ckSecondary
-import com.example.ui.theme.Bl4ckSurface
-import com.example.ui.theme.Bl4ckSurfaceElevated
-import com.example.ui.theme.Bl4ckSurfaceVariant
 import com.example.ui.theme.Bl4ckTextMuted
 import com.example.ui.theme.Bl4ckTextPrimary
 import com.example.ui.theme.Bl4ckTextSecondary
@@ -79,8 +83,8 @@ fun HistoricoScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Bl4ckBackground),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Header com Título e Ação de Limpar
         item {
@@ -92,14 +96,14 @@ fun HistoricoScreen(
                 Column {
                     Text(
                         text = "HISTÓRICO DE OPERAÇÕES",
-                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp,
                         color = Bl4ckTextPrimary
                     )
                     Text(
                         text = "Respostas diretas da operadora de telecomunicações",
-                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 12.sp,
                         color = Bl4ckTextSecondary
                     )
                 }
@@ -108,10 +112,10 @@ fun HistoricoScreen(
                     IconButton(
                         onClick = onLimparHistorico,
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Bl4ckSurfaceVariant)
-                            .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(10.dp))
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Bl4ckGlassSurfaceLight)
+                            .border(1.dp, Bl4ckGlassBorder, RoundedCornerShape(14.dp))
                             .testTag("btn_clear_history")
                     ) {
                         Icon(
@@ -125,7 +129,7 @@ fun HistoricoScreen(
             }
         }
 
-        // Filtros (Chips modernos)
+        // Filtros (Chips modernos Glassmorphic)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -141,7 +145,7 @@ fun HistoricoScreen(
                     FilterChip(
                         selected = isSelected,
                         onClick = { selectedFilter = key },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(14.dp),
                         label = {
                             Text(
                                 label,
@@ -150,15 +154,15 @@ fun HistoricoScreen(
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Bl4ckSurface,
-                            selectedContainerColor = Bl4ckPrimary.copy(alpha = 0.14f),
+                            containerColor = Bl4ckGlassSurfaceLight,
+                            selectedContainerColor = Bl4ckPrimary.copy(alpha = 0.16f),
                             labelColor = Bl4ckTextSecondary,
                             selectedLabelColor = Bl4ckPrimary
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
                             selected = isSelected,
-                            borderColor = Bl4ckBorderSubtle,
+                            borderColor = Bl4ckGlassBorderSubtle,
                             selectedBorderColor = Bl4ckPrimary.copy(alpha = 0.5f)
                         )
                     )
@@ -188,17 +192,19 @@ fun HistoricoCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("card_historico_${item.id}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Bl4ckSurface),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
         border = CardDefaults.outlinedCardBorder().copy(
-            brush = androidx.compose.ui.graphics.SolidColor(Bl4ckBorder),
+            brush = Brush.verticalGradient(
+                listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
+            ),
             width = 1.dp
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(15.dp)
+                .padding(16.dp)
         ) {
             // Linha 1: Badge de Status e Timestamp
             Row(
@@ -216,7 +222,7 @@ fun HistoricoCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Linha 2: Número de Destino e Volume de Dados Transferido
             Row(
@@ -240,18 +246,17 @@ fun HistoricoCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bl4ckSurfaceVariant)
-                        .border(1.dp, Bl4ckBorderSubtle, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                Surface(
+                    color = Bl4ckGlassSurfaceLight,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Bl4ckGlassBorderSubtle)
                 ) {
                     Text(
                         text = "${item.megas} MB",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = Bl4ckTextPrimary
+                        color = Bl4ckTextPrimary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
             }
@@ -262,19 +267,19 @@ fun HistoricoCard(
                 val isSucessoPadrao = respostaFormatada.lowercase().contains("transferiste com sucesso") ||
                         respostaFormatada.lowercase().contains("transferido com sucesso")
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF090E17))
                         .border(
                             1.dp,
-                            if (item.status == "ANALISE") Color(0xFFF59E0B).copy(alpha = 0.4f) else Bl4ckBorderSubtle,
-                            RoundedCornerShape(10.dp)
+                            if (item.status == "ANALISE") Color(0xFFF59E0B).copy(alpha = 0.4f) else Bl4ckGlassBorderSubtle,
+                            RoundedCornerShape(12.dp)
                         )
-                        .padding(10.dp)
+                        .padding(12.dp)
                 ) {
                     Column {
                         Row(
@@ -284,7 +289,6 @@ fun HistoricoCard(
                         ) {
                             Text(
                                 text = "RESPOSTA DA OPERADORA:",
-                                style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Bl4ckTextMuted,
@@ -294,7 +298,7 @@ fun HistoricoCard(
                             if (item.status == "ANALISE" || !isSucessoPadrao && item.status != "FALHA") {
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(6.dp))
                                         .background(Color(0xFF332005))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
@@ -332,7 +336,6 @@ private fun formatarRespostaOperadoraExibicao(texto: String): String {
     limpo = limpo.replace(buttonRegex, "").trim()
     limpo = limpo.replace(Regex("\\s+"), " ").trim()
     val finalTexto = limpo.ifBlank { texto.trim() }
-    // No histórico a parte da resposta da operadora nunca deve ter mais de 70 carácteres se for corta o resto
     return if (finalTexto.length > 70) finalTexto.take(70).trim() else finalTexto
 }
 
@@ -361,14 +364,13 @@ fun HistoricoStatusBadge(status: String) {
         )
     }
 
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bgColor)
-            .border(1.dp, textColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+    Surface(
+        color = bgColor,
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, textColor.copy(alpha = 0.25f))
     ) {
         Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -391,47 +393,56 @@ fun HistoricoStatusBadge(status: String) {
 
 @Composable
 private fun EmptyHistoricoView() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Bl4ckSurface)
-            .border(1.dp, Bl4ckBorder, RoundedCornerShape(18.dp))
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Bl4ckGlassSurface),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = Brush.verticalGradient(
+                listOf(Bl4ckGlassBorder, Bl4ckGlassBorderSubtle)
+            ),
+            width = 1.dp
+        )
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .size(54.dp)
-                .clip(CircleShape)
-                .background(Bl4ckSurfaceVariant)
-                .border(1.dp, Bl4ckBorder, CircleShape),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.History,
-                contentDescription = null,
-                tint = Bl4ckTextMuted,
-                modifier = Modifier.size(26.dp)
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .background(Bl4ckGlassSurfaceLight)
+                    .border(1.dp, Bl4ckGlassBorder, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = Bl4ckTextMuted,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Histórico de Transações Vazio",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Bl4ckTextPrimary
+            )
+
+            Text(
+                text = "As confirmações e respostas USSD da operadora capturadas durante as execuções aparecerão aqui com timestamp preciso.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Bl4ckTextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        Text(
-            text = "Histórico de Transações Vazio",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Bl4ckTextPrimary
-        )
-
-        Text(
-            text = "As confirmações e respostas USSD da operadora capturadas durante as execuções aparecerão aqui com timestamp preciso.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Bl4ckTextSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp)
-        )
     }
 }
